@@ -1,8 +1,7 @@
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.CSharp.Testing;
+using Microsoft.CodeAnalysis.Testing;
 using Xunit;
-using Verifier =
-    Microsoft.CodeAnalysis.CSharp.Testing.XUnit.AnalyzerVerifier<
-        Infrastructure_Analyzers.BaseCalls.SampleSyntaxAnalyzer>;
 
 namespace Infrastructure_Analyzers.BaseCalls.Tests;
 
@@ -17,9 +16,9 @@ public class SuperstitiousClass
 }
 ";
 
-        var expected = Verifier.Diagnostic()
+        var expected = CSharpAnalyzerVerifier<SampleSyntaxAnalyzer, DefaultVerifier>.Diagnostic()
             .WithLocation(2, 14)
             .WithArguments("SuperstitiousClass");
-        await Verifier.VerifyAnalyzerAsync(text, expected).ConfigureAwait(false);
+        await CSharpAnalyzerVerifier<SampleSyntaxAnalyzer, DefaultVerifier>.VerifyAnalyzerAsync(text, expected);
     }
 }

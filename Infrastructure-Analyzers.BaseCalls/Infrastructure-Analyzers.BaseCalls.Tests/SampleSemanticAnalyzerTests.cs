@@ -1,8 +1,7 @@
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.CSharp.Testing;
+using Microsoft.CodeAnalysis.Testing;
 using Xunit;
-using Verifier =
-    Microsoft.CodeAnalysis.CSharp.Testing.XUnit.AnalyzerVerifier<
-        Infrastructure_Analyzers.BaseCalls.SampleSemanticAnalyzer>;
 
 namespace Infrastructure_Analyzers.BaseCalls.Tests;
 
@@ -27,9 +26,9 @@ public class Spaceship
 }
 ";
 
-        var expected = Verifier.Diagnostic()
+        var expected = CSharpAnalyzerVerifier<SampleSemanticAnalyzer, DefaultVerifier>.Diagnostic()
             .WithLocation(7, 28)
             .WithArguments("300000000");
-        await Verifier.VerifyAnalyzerAsync(text, expected);
+        await CSharpAnalyzerVerifier<SampleSemanticAnalyzer, DefaultVerifier>.VerifyAnalyzerAsync(text, expected);
     }
 }
