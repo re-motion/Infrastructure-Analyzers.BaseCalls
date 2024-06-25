@@ -1,0 +1,9 @@
+﻿{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "DebugRoslynAnalyzers": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "../Infrastructure_Analyzers.BaseCalls.Sample/Infrastructure_Analyzers.BaseCalls.Sample.csproj"
+    }
+  }
+}
