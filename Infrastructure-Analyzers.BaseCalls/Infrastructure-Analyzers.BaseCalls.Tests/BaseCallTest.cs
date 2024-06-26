@@ -1,5 +1,4 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
+﻿using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace Infrastructure_Analyzers.BaseCalls.Tests;
@@ -10,6 +9,8 @@ public class BaseCallTest
     public async void BasicBaseCallTest()
     {
         const string text = @"
+using Infrastructure_Analyzers.BaseCalls;
+
 public abstract class BaseClass
 {
     [BaseCallCheck(BaseCall.IsMandatory)]
@@ -29,10 +30,10 @@ public class DerivedClass : BaseClass
 }";
         /*
          var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer, DefaultVerifier>.Diagnostic()
-            .WithLocation(11, 26)
+            .WithLocation(14, 26)
             .WithArguments("Test");
          */
         var expected = DiagnosticResult.EmptyDiagnosticResults;
-        await CSharpAnalyzerVerifier<BaseCallAnalyzer, DefaultVerifier>.VerifyAnalyzerAsync(text, expected);
+        await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
     }
 }
