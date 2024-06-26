@@ -12,6 +12,7 @@ public class BaseCallTest
         const string text = @"
 public abstract class BaseClass
 {
+    [BaseCallCheck(BaseCall.IsMandatory)]
     public virtual void Test ()
     {
         int a = 5;
@@ -28,7 +29,7 @@ public class DerivedClass : BaseClass
 }";
         /*
          var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer, DefaultVerifier>.Diagnostic()
-            .WithLocation(10, 26)
+            .WithLocation(11, 26)
             .WithArguments("Test");
          */
         var expected = DiagnosticResult.EmptyDiagnosticResults;

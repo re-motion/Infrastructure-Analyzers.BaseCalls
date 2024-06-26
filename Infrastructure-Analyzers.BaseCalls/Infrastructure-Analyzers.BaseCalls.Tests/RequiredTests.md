@@ -1,5 +1,17 @@
 # Required Tests
 
+## BaseCallCheck attribute
+
+The attribute `BaseCallCheck` should be applied on methods to check. More info about when
+the methods should be checked can be found in the `BaseCallCheckAttribute.cs` file.
+
+Since the attribute should be used in the code that is analyzed, we somehow need to get the attribute to users.
+There are 2 options:
+* [Option 1] The attribute is only identified by the namespace and its name. This allows us to create a simple nuget package only containing the 2 attributes and the enum.
+If people don't want to use the nuget package, they can add the same attributes and enum in the same namespace, and it should just work.
+* [Option 2] This is more complicated than option 1. Read [this](https://andrewlock.net/creating-a-source-generator-part-7-solving-the-source-generator-marker-attribute-problem-part1/) and its second part, 
+ and implement it. This would make the analyzer easier to use and also allow for better checks in the analyzer of the attributes.
+
 ## Basecalls
 ### Basic overwritten Methods:
 * virtual method without basecall &rarr; ❌
