@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
-namespace Infrastructure_Analyzers.BaseCalls;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer

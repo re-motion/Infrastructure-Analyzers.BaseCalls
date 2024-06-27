@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Infrastructure_Analyzers.BaseCalls;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public enum BaseCall
 {

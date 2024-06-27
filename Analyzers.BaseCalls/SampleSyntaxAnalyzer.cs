@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
-namespace Infrastructure_Analyzers.BaseCalls;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 /// <summary>
 ///   A sample analyzer that reports superstitious names being used in class declarations.

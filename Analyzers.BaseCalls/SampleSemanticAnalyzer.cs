@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
-namespace Infrastructure_Analyzers.BaseCalls;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 /// <summary>
 ///   A sample analyzer that reports invalid values being used for the 'speed' parameter of the 'SetSpeed' function.

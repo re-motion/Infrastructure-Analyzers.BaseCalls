@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
 
-namespace Infrastructure_Analyzers.BaseCalls.Tests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 public static class CSharpAnalyzerVerifier<TAnalyzer>
   where TAnalyzer : DiagnosticAnalyzer, new()

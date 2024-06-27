@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
-namespace Infrastructure_Analyzers.BaseCalls.Tests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 public class SampleSyntaxAnalyzerTests
 {
