@@ -27,6 +27,7 @@ If people don't want to use the nuget package, they can add the same attributes 
 * loops with Basecall &rarr; ❌ (don't forget different loop types)
 * basecall in anonymous methods &rarr; ❌
 * basecall in local function &rarr; ❌
+* basecall in method which does not override &rarr; ❌
 
 ### Extra case (very unlikely to happen): 
 * overwritten virtual method with basecall in a switch expression &rarr; either an error overall OR given a basecall in one branch, all branches must feature a basecall 

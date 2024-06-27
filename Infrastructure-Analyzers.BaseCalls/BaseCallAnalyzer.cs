@@ -8,7 +8,7 @@ namespace Infrastructure_Analyzers.BaseCalls;
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
     // Preferred format of DiagnosticId is Your Prefix + Number, e.g. CA1234.
-    private const string DiagnosticId = "DY0001";
+    private const string DiagnosticId = "RMBCA0001";
 
     // Feel free to use raw strings if you don't need localization.
     private static readonly LocalizableString Title = "DummyTitle";
