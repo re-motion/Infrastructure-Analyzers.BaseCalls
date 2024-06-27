@@ -1,8 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure-Analyzers.BaseCalls", "Infrastructure-Analyzers.BaseCalls\Infrastructure-Analyzers.BaseCalls.csproj", "{4254ED2C-B863-4CCE-89A0-EF84D91E71C4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzers.BaseCalls", "Analyzers.BaseCalls\Analyzers.BaseCalls.csproj", "{4254ED2C-B863-4CCE-89A0-EF84D91E71C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure-Analyzers.BaseCalls.Tests", "Infrastructure-Analyzers.BaseCalls.Tests\Infrastructure-Analyzers.BaseCalls.Tests.csproj", "{927276A0-BF2C-45AB-B7BC-89DF5C1C664B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzers.BaseCalls.UnitTests", "Analyzers.BaseCalls.UnitTests\Analyzers.BaseCalls.UnitTests.csproj", "{927276A0-BF2C-45AB-B7BC-89DF5C1C664B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

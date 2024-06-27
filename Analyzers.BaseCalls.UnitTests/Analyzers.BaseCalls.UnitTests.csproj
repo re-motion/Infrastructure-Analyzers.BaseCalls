@@ -5,6 +5,9 @@
         <Nullable>enable</Nullable>
 
         <IsPackable>false</IsPackable>
+
+        <AssemblyName>Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests</AssemblyName>
+        <RootNamespace>$(AssemblyName)</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -19,7 +22,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Infrastructure-Analyzers.BaseCalls\Infrastructure-Analyzers.BaseCalls.csproj"/>
+        <ProjectReference Include="..\Analyzers.BaseCalls\Analyzers.BaseCalls.csproj" />
     </ItemGroup>
 
 </Project>
