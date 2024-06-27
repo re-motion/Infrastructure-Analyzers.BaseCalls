@@ -1,6 +1,5 @@
 ### New Rules
 
-
 | Rule ID | Category | Severity | Notes                                            |
 |---------|----------|----------|--------------------------------------------------|
 | BCA0001 | Naming   | Warning  | A classname should not be superstitious.         |

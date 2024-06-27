@@ -7,32 +7,32 @@ namespace Infrastructure_Analyzers.BaseCalls;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
-    // Preferred format of DiagnosticId is Your Prefix + Number, e.g. CA1234.
-    private const string DiagnosticId = "RMBCA0001";
+  // Preferred format of DiagnosticId is Your Prefix + Number, e.g. CA1234.
+  private const string DiagnosticId = "RMBCA0001";
 
-    // Feel free to use raw strings if you don't need localization.
-    private static readonly LocalizableString Title = "DummyTitle";
+  // The category of the diagnostic (Design, Naming etc.).
+  private const string Category = "Usage";
 
-    // The message that will be displayed to the user.
-    private static readonly LocalizableString MessageFormat = "DummyMessage";
+  // Feel free to use raw strings if you don't need localization.
+  private static readonly LocalizableString Title = "DummyTitle";
 
-    private static readonly LocalizableString Description = "DummyDescription.";
+  // The message that will be displayed to the user.
+  private static readonly LocalizableString MessageFormat = "DummyMessage";
 
-    // The category of the diagnostic (Design, Naming etc.).
-    private const string Category = "Usage";
+  private static readonly LocalizableString Description = "DummyDescription.";
 
-    // Don't forget to add your rules to the AnalyzerReleases.Shipped/Unshipped.md
-    private static readonly DiagnosticDescriptor Rule = new(DiagnosticId, Title, MessageFormat, Category,
-        DiagnosticSeverity.Warning, isEnabledByDefault: true, description: Description);
+  // Don't forget to add your rules to the AnalyzerReleases.Shipped/Unshipped.md
+  public static readonly DiagnosticDescriptor Rule = new(DiagnosticId, Title, MessageFormat, Category,
+    DiagnosticSeverity.Warning, true, Description);
 
-    // Keep in mind: you have to list your rules here.
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(Rule);
+  // Keep in mind: you have to list your rules here.
+  public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
+    ImmutableArray.Create(Rule);
 
-    public override void Initialize(AnalysisContext context)
-    {
-        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+  public override void Initialize(AnalysisContext context)
+  {
+    context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
-        context.EnableConcurrentExecution();
-    }
+    context.EnableConcurrentExecution();
+  }
 }
