@@ -1,0 +1,6 @@
+﻿root = true
+
+[*.cs]
+file_header_template = SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu\nSPDX-License-Identifier: MIT
+indent_size = 2
+indent_style = space
