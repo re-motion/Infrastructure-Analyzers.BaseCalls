@@ -1,4 +1,7 @@
-﻿using System;
+﻿// SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu
+// SPDX-License-Identifier:MIT
+
+using System;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
