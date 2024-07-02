@@ -1,8 +1,11 @@
 ﻿// SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -25,8 +28,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString Description = "DummyDescription.";
 
   // Don't forget to add your rules to the AnalyzerReleases.Shipped/Unshipped.md
-  public static readonly DiagnosticDescriptor Rule = new(DiagnosticId, Title, MessageFormat, Category,
-    DiagnosticSeverity.Warning, true, Description);
+  public static readonly DiagnosticDescriptor Rule = new(
+      DiagnosticId,
+      Title,
+      MessageFormat,
+      Category,
+      DiagnosticSeverity.Warning,
+      true,
+      Description);
 
   // Keep in mind: you have to list your rules here.
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
@@ -34,8 +43,78 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   public override void Initialize(AnalysisContext context)
   {
+    context.RegisterSyntaxNodeAction(
+        AnalyzeNode,
+        SyntaxKind.MethodDeclaration);
+
     context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
     context.EnableConcurrentExecution();
+  }
+
+  private void AnalyzeNode (SyntaxNodeAnalysisContext context)
+  {
+    //will always work because it is checked above
+    var node = (MethodDeclarationSyntax)context.Node;
+
+    //if the method does not have the keyword override, the basecallcheck is useless
+    if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword))
+    {
+      return;
+    }
+
+    //store Method signature
+    string methodName = node.Identifier.Text;
+
+    //var parameterList = node.ParameterList; TODO: implement for different parameters
+
+    //int arity = node.Arity; TODO: implement for Generics
+
+
+    //get child nodes of the method declaration
+    var childNodes = node.Body.ChildNodes();
+
+    foreach (var childNode in childNodes)
+    {
+      /*
+       searching for basecalls by going through every line and checking if its a basecall
+
+       example syntax tree:
+
+       MethodDeclaration
+        Body: Block
+          Expression: InvocationExpression
+            Expression: SimpleMemberAccessExpression
+              Expression: BaseExpression
+
+       */
+      if (childNode is not ExpressionStatementSyntax expressionStatementnode)
+      {
+        continue;
+      }
+
+      MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
+      try
+      {
+        var invocationExpressionNode = expressionStatementnode.Expression as InvocationExpressionSyntax;
+        simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax;
+      }
+      catch (Exception e) //quick and dirty TODO: make it cleaner
+      {
+        continue;
+      }
+
+      //check if xxx in "base.xxx" is the own same method signature(name + list of params) as before cause if so, it is a basecall
+      if (simpleMemberAccessExpressionNode.Expression is BaseExpressionSyntax
+          && simpleMemberAccessExpressionNode.Name.ToString().Equals(methodName)
+          //&& invocationExpressionNode.ArgumentList.Equals(parameterList)
+         )
+      {
+        return;
+      }
+    }
+
+    //no basecall found -> Warning
+    context.ReportDiagnostic(Diagnostic.Create(Rule, node.GetLocation()));
   }
 }
