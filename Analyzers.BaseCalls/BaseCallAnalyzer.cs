@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System;
+using System.Linq;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
@@ -65,12 +66,23 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     //if the method does not have the keyword override, the basecallcheck is useless
     if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return;
-
-
+    
+    //get overridden method
+    var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
+    var overriddenMethod = methodSymbol.OverriddenMethod;
+    if (overriddenMethod == null) return;
+    
+    //check overridden method for BaseCallCheck attribute
+    BaseCall res = checkForBaseCallCheckAttribute(overriddenMethod);
+    if (res == BaseCall.IsOptional)
+      return;
+    
+    
     //store Method signature
     string methodName = node.Identifier.Text;
-
-    //var parameterList = node.ParameterList; TODO: implement for different parameters
+    var parameters = node.ParameterList.Parameters;
+    int numberOfParameters = parameters.Count;
+    Type[] typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
 
     //int arity = node.Arity; TODO: implement for Generics
 
@@ -98,20 +110,26 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
+      InvocationExpressionSyntax invocationExpressionNode;
       try
       {
-        var invocationExpressionNode = expressionStatementnode.Expression as InvocationExpressionSyntax;
+        invocationExpressionNode = expressionStatementnode.Expression as InvocationExpressionSyntax;
         simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax;
       }
-      catch (Exception e) //quick and dirty TODO: make it cleaner
+      catch (Exception e) //you know what, it works
       {
         continue;
       }
 
-      //check if xxx in "base.xxx" is the own same method signature(name + list of params) as before cause if so, it is a basecall
+      //check if xxx in code line "base.xxx" is the same method signature(name + list of params) as before cause if so, it is a basecall
+      var arguments = invocationExpressionNode.ArgumentList.Arguments;
+      int numberOfArguments = arguments.Count;
+      Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
+      
       if (simpleMemberAccessExpressionNode.Expression is BaseExpressionSyntax
           && simpleMemberAccessExpressionNode.Name.Identifier.Text == methodName
-          //&& invocationExpressionNode.ArgumentList.Equals(parameterList)
+          && numberOfParameters == numberOfArguments
+          && typesOfParameters.Equals(typesOfArguments)
          )
       {
         return;
@@ -140,5 +158,28 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
 
     return false;
+  }
+  private BaseCall checkForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
+  {
+    var attributes = overriddenMethod.GetAttributes();
+    var attributeDescriptions = attributes.Select(attr =>
+    {
+      var attributeClass = attr.AttributeClass;
+      var attributeNamespace = attributeClass.ContainingNamespace.ToDisplayString();
+      
+      
+      return $"{attributeNamespace}.{attributeClass.Name}(BaseCall.{Enum.GetName(typeof(BaseCall), attr.ConstructorArguments[0].Value)})";
+      
+    }).ToList();
+    
+    
+    foreach (var attributeDescription in attributeDescriptions)
+    {
+      if (attributeDescription.Contains("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)"))
+      {
+        return BaseCall.IsOptional;
+      }
+    }
+    return BaseCall.IsMandatory;
   }
 }

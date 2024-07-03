@@ -107,7 +107,7 @@ public class BaseCallTest
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
   
-  [Fact(Skip = "not implemented")]
+  [Fact]
   public async Task BaseCall_with_wrong_param_datatypes_ReportsDiagnostic ()
   {
     const string text =
@@ -132,7 +132,7 @@ public class BaseCallTest
             public override void Test (string c)
             {
                 int b = 7;
-                base.Test(c);
+                base.Test(b); // not a baseCall
             }
         }
 
@@ -144,7 +144,7 @@ public class BaseCallTest
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
-  [Fact(Skip = "not implemented")]
+  [Fact]
   public async Task BaseCall_with_wrong_number_of_params_ReportsDiagnostic ()
   {
     const string text =
@@ -212,7 +212,7 @@ public class BaseCallTest
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
-  [Fact(Skip = "not implemented")]
+  [Fact]
   public async Task NoBaseCall_WithBaseCallOptional_ReportsNothing()
   {
     const string text =
