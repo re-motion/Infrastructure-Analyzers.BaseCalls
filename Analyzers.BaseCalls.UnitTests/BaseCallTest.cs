@@ -217,7 +217,7 @@ public class BaseCallTest
   {
     const string text =
       """
-      using Infrastructure_Analyzers.BaseCalls;
+      using Remotion.Infrastructure.Analyzers.BaseCalls;
 
       public abstract class BaseClass
       {
@@ -237,6 +237,36 @@ public class BaseCallTest
           }
       }
       """;
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+  
+  [Fact]
+  public async Task NoBaseCall_with_IgnoreBaseCall_ReportsNothing()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            //[BaseCallCheck(BaseCall.IsOptional)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            [IgnoreBaseCallCheck]
+            public override void Test ()
+            {
+                int b = 7;
+                //base.Test();
+            }
+        }
+        """;
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

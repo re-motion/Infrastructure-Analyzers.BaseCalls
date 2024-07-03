@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using System;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
@@ -41,7 +42,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
     ImmutableArray.Create(Rule);
 
-  public override void Initialize(AnalysisContext context)
+  public override void Initialize (AnalysisContext context)
   {
     context.RegisterSyntaxNodeAction(
         AnalyzeNode,
@@ -57,11 +58,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     //will always work because it is checked above
     var node = (MethodDeclarationSyntax)context.Node;
 
+    //check for IgnoreBaseCallCheck attribute
+    bool attrFound = HasIgnoreBaseCallCheckAttribute(context);
+    if (attrFound) return;
+
+
     //if the method does not have the keyword override, the basecallcheck is useless
-    if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword))
-    {
-      return;
-    }
+    if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return;
+
 
     //store Method signature
     string methodName = node.Identifier.Text;
@@ -106,7 +110,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       //check if xxx in "base.xxx" is the own same method signature(name + list of params) as before cause if so, it is a basecall
       if (simpleMemberAccessExpressionNode.Expression is BaseExpressionSyntax
-          && simpleMemberAccessExpressionNode.Name.ToString().Equals(methodName)
+          && simpleMemberAccessExpressionNode.Name.Identifier.Text == methodName
           //&& invocationExpressionNode.ArgumentList.Equals(parameterList)
          )
       {
@@ -116,5 +120,25 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     //no basecall found -> Warning
     context.ReportDiagnostic(Diagnostic.Create(Rule, node.GetLocation()));
+  }
+
+  private bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
+  {
+    var node = (MethodDeclarationSyntax)context.Node;
+    foreach (var attributeListSyntax in node.AttributeLists)
+    {
+      foreach (var attribute in attributeListSyntax.Attributes)
+      {
+        var imSymbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
+
+        if (imSymbol == null) continue;
+        var fullNameOfNamespace = imSymbol.ToString();
+
+        if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
+          return true;
+      }
+    }
+
+    return false;
   }
 }
