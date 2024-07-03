@@ -41,7 +41,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   // Keep in mind: you have to list your rules here.
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-    ImmutableArray.Create(Rule);
+    [Rule];
 
   public override void Initialize (AnalysisContext context)
   {
@@ -60,7 +60,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var node = (MethodDeclarationSyntax)context.Node;
 
     //check for IgnoreBaseCallCheck attribute
-    bool attrFound = HasIgnoreBaseCallCheckAttribute(context);
+    var attrFound = HasIgnoreBaseCallCheckAttribute(context);
     if (attrFound) return;
 
 
@@ -69,31 +69,33 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     
     //get overridden method
     var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
-    var overriddenMethod = methodSymbol.OverriddenMethod;
+    var overriddenMethod = methodSymbol?.OverriddenMethod;
     if (overriddenMethod == null) return;
     
     //check overridden method for BaseCallCheck attribute
-    BaseCall res = checkForBaseCallCheckAttribute(overriddenMethod);
+    var res = CheckForBaseCallCheckAttribute(overriddenMethod);
     if (res == BaseCall.IsOptional)
       return;
     
     
     //store Method signature
-    string methodName = node.Identifier.Text;
+    var methodName = node.Identifier.Text;
     var parameters = node.ParameterList.Parameters;
-    int numberOfParameters = parameters.Count;
-    Type[] typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
+    var numberOfParameters = parameters.Count;
+    var typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
 
     //int arity = node.Arity; TODO: implement for Generics
 
 
     //get child nodes of the method declaration
-    var childNodes = node.Body.ChildNodes();
-
-    foreach (var childNode in childNodes)
+    if (node.Body != null)
     {
-      /*
-       searching for basecalls by going through every line and checking if its a basecall
+      var childNodes = node.Body.ChildNodes();
+
+      foreach (var childNode in childNodes)
+      {
+        /*
+       searching for basecalls by going through every line and checking if it's a basecall
 
        example syntax tree:
 
@@ -104,35 +106,37 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               Expression: BaseExpression
 
        */
-      if (childNode is not ExpressionStatementSyntax expressionStatementnode)
-      {
-        continue;
-      }
+        if (childNode is not ExpressionStatementSyntax expressionStatementNode)
+        {
+          continue;
+        }
 
-      MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
-      InvocationExpressionSyntax invocationExpressionNode;
-      try
-      {
-        invocationExpressionNode = expressionStatementnode.Expression as InvocationExpressionSyntax;
-        simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax;
-      }
-      catch (Exception e) //you know what, it works
-      {
-        continue;
-      }
+        MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
+        InvocationExpressionSyntax invocationExpressionNode;
+        try
+        {
+          invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
+          simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
+        
+        }
+        catch (InvalidOperationException)
+        {
+          continue;
+        }
 
-      //check if xxx in code line "base.xxx" is the same method signature(name + list of params) as before cause if so, it is a basecall
-      var arguments = invocationExpressionNode.ArgumentList.Arguments;
-      int numberOfArguments = arguments.Count;
-      Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
+        //check if xxx in code line "base.xxx" is the same method signature(name + list of params) as before cause if so, it is a basecall
+        var arguments = invocationExpressionNode.ArgumentList.Arguments;
+        int numberOfArguments = arguments.Count;
+        Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
       
-      if (simpleMemberAccessExpressionNode.Expression is BaseExpressionSyntax
-          && simpleMemberAccessExpressionNode.Name.Identifier.Text == methodName
-          && numberOfParameters == numberOfArguments
-          && typesOfParameters.Equals(typesOfArguments)
-         )
-      {
-        return;
+        if (simpleMemberAccessExpressionNode.Expression is BaseExpressionSyntax
+            && simpleMemberAccessExpressionNode.Name.Identifier.Text == methodName
+            && numberOfParameters == numberOfArguments
+            && typesOfParameters.Equals(typesOfArguments)
+           )
+        {
+          return;
+        }
       }
     }
 
@@ -159,17 +163,19 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     return false;
   }
-  private BaseCall checkForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
+  private BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
   {
     var attributes = overriddenMethod.GetAttributes();
     var attributeDescriptions = attributes.Select(attr =>
     {
       var attributeClass = attr.AttributeClass;
-      var attributeNamespace = attributeClass.ContainingNamespace.ToDisplayString();
-      
-      
-      return $"{attributeNamespace}.{attributeClass.Name}(BaseCall.{Enum.GetName(typeof(BaseCall), attr.ConstructorArguments[0].Value)})";
-      
+      var attributeNamespace = attributeClass?.ContainingNamespace.ToDisplayString();
+
+
+      var valueOfEnumArgument = attr.ConstructorArguments[0].Value;
+      if (valueOfEnumArgument != null)
+        return $"{attributeNamespace}.{attributeClass?.Name}(BaseCall.{Enum.GetName(typeof(BaseCall), valueOfEnumArgument)})";
+      return $"{attributeNamespace}.{attributeClass?.Name}";
     }).ToList();
     
     
