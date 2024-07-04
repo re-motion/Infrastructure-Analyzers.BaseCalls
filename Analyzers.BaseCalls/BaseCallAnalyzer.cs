@@ -17,6 +17,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   // Preferred format of DiagnosticId is Your Prefix + Number, e.g. CA1234.
   private const string DiagnosticId = "RMBCA0001";
+  private const string DiagnosticIdLoopMessage = "RMBCA0002";
 
   // The category of the diagnostic (Design, Naming etc.).
   private const string Category = "Usage";
@@ -43,7 +44,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       Description);
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInLoop = new(
-      DiagnosticId,
+      DiagnosticIdLoopMessage,
       TitleLoopMessage,
       MessageFormatLoopMessage,
       Category,
@@ -77,60 +78,93 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     //body is empty -> diagnostic
     if (node.Body == null) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
 
-
     //searching for basecalls by going through every line and checking if it's a basecall, example syntax tree:
-    /*
-     MethodDeclaration
-      Body: Block
-        Expression: InvocationExpression
-          Expression: SimpleMemberAccessExpression
-            Expression: BaseExpression
-    */
+
     var childNodes = node.Body!.ChildNodes();
     foreach (var childNode in childNodes)
     {
-      InvocationExpressionSyntax invocationExpressionNode;
-      MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
-      try
+      if (IsBaseCall(node, childNode)) return;
+      if (BaseCallInLoopRecursive(node, childNode))
       {
-        //trying to cast a line of code to an BaseExpressionSyntax
-        var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
-        invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
-        simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
-        _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
-      }
-      catch (InvalidOperationException)
-      {
-        continue;
-      }
-
-
-      //Method signature
-      var methodName = node.Identifier.Text;
-      var parameters = node.ParameterList.Parameters;
-      var numberOfParameters = parameters.Count;
-      var typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
-      //int arity = node.Arity; TODO: implement for Generics
-
-      //Method signature of BaseCall
-      var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
-      var arguments = invocationExpressionNode.ArgumentList.Arguments;
-      int numberOfArguments = arguments.Count;
-      Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
-
-
-      //check if its really a basecall
-      if (
-          nameOfCalledMethod.Equals(methodName)
-          && numberOfParameters == numberOfArguments
-          && typesOfParameters.Equals(typesOfArguments)
-      )
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, node.GetLocation()));
         return;
+      }
     }
-
 
     //no basecall found -> Warning
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
+  }
+
+  private bool IsBaseCall (MethodDeclarationSyntax node, SyntaxNode childNode)
+  {
+    InvocationExpressionSyntax invocationExpressionNode;
+    MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
+    try
+    {
+      //trying to cast a line of code to an BaseExpressionSyntax, example Syntax tree:
+      /*
+       MethodDeclaration
+        Body: Block
+          Expression: InvocationExpression
+            Expression: SimpleMemberAccessExpression
+              Expression: BaseExpression
+      */
+      var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
+      invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
+      simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
+      _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
+    }
+    catch (InvalidOperationException)
+    {
+      return false;
+    }
+
+
+    //Method signature
+    var methodName = node.Identifier.Text;
+    var parameters = node.ParameterList.Parameters;
+    var numberOfParameters = parameters.Count;
+    var typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
+    //int arity = node.Arity; TODO: implement for Generics
+
+    //Method signature of BaseCall
+    var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
+    var arguments = invocationExpressionNode.ArgumentList.Arguments;
+    int numberOfArguments = arguments.Count;
+    Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
+
+
+    //check if its really a basecall
+    if (
+        nameOfCalledMethod.Equals(methodName)
+        && numberOfParameters == numberOfArguments
+        && typesOfParameters.Equals(typesOfArguments)
+    )
+      return true;
+    return false;
+  }
+
+  private bool BaseCallInLoopRecursive (MethodDeclarationSyntax Methodnode, SyntaxNode node)
+  {
+    if (IsBaseCall(Methodnode, node)) return true;
+    if (!IsLoop(node)) return false;
+
+    var loopStatement = (node as ForStatementSyntax)?.Statement ??
+                        (node as WhileStatementSyntax)?.Statement ??
+                        (node as ForEachStatementSyntax)?.Statement;
+
+
+    foreach (var childNode in loopStatement!.ChildNodes())
+      if (BaseCallInLoopRecursive(Methodnode, childNode))
+        return true;
+
+    return false;
+  }
+  
+  private bool IsLoop (SyntaxNode node)
+  {
+    if (node is ForStatementSyntax || node is WhileStatementSyntax) return true;
+    return false;
   }
 
   private bool AttributePreventingBaseCallCheck (SyntaxNodeAnalysisContext context)

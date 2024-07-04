@@ -304,7 +304,7 @@ public class BaseCallTest
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
   
-  [Fact(Skip="not implemented")]
+  [Fact]
   public async Task BaseCall_In_loop_ReportsLoopDiagnostic ()
   {
     const string text =
@@ -326,13 +326,55 @@ public class BaseCallTest
             {
               int b = 7;
               for (int i = 0; i < 10; i++) {
-                  base.Test();
+                  for (int j = 0; j < 10; j++) {
+                    while(true){
+                      base.Test();
+                    }
+                  }
               }
             }
         }
         """;
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInLoop)
+        .WithLocation(14, 5)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+  
+  [Fact]
+  public async Task NoBaseCall_In_loop_ReportsDiagnostic ()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void Test ()
+            {
+              int b = 7;
+              for (int i = 0; i < 10; i++) {
+                  for (int j = 0; j < 10; j++) {
+                    while(true){
+                      //base.Test();
+                    }
+                  }
+              }
+            }
+        }
+        """;
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
         .WithLocation(14, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
