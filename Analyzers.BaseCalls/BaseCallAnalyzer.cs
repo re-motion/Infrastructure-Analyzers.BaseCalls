@@ -17,7 +17,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   // Preferred format of DiagnosticId is Your Prefix + Number, e.g. CA1234.
   private const string DiagnosticId = "RMBCA0001";
-  private const string DiagnosticIdLoopMessage = "RMBCA0002";
+  private const string DiagnosticIdLoopMessage = "RMBCA0001";
 
   // The category of the diagnostic (Design, Naming etc.).
   private const string Category = "Usage";
