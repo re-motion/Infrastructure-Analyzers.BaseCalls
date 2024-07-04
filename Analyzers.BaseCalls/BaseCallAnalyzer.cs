@@ -71,9 +71,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     var node = (MethodDeclarationSyntax)context.Node;
 
-    if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return;
-
-    if (AttributePreventingBaseCallCheck(context)) return;
+    if (!BaseCallCheckShouldHappen(context)) return;
     
     if (node.Body == null) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
 
@@ -91,6 +89,35 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     //no basecall found -> Warning
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
+  }
+
+  private bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
+  {
+    var node = (MethodDeclarationSyntax)context.Node;
+    
+    if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return false;
+    
+    //check for IgnoreBaseCallCheck attribute
+    if (HasIgnoreBaseCallCheckAttribute(context)) return false;
+
+    //get overridden method
+    var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
+    var overriddenMethod = methodSymbol?.OverriddenMethod;
+    if (overriddenMethod == null) return false; //should not be possible
+
+    //check overridden method for BaseCallCheck attribute
+    var res = CheckForBaseCallCheckAttribute(overriddenMethod);
+    
+    if (res == BaseCall.IsOptional)
+      return false;
+    if (res == BaseCall.IsMandatory)
+      return true;
+    if (res == BaseCall.Default)
+      if (node.Modifiers.Any(SyntaxKind.VoidKeyword))
+        return true;
+    
+    
+    return false;
   }
 
   private bool IsBaseCall (MethodDeclarationSyntax node, SyntaxNode childNode)
@@ -233,25 +260,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private bool AttributePreventingBaseCallCheck (SyntaxNodeAnalysisContext context)
-  {
-    var node = (MethodDeclarationSyntax)context.Node;
-    //check for IgnoreBaseCallCheck attribute
-    if (HasIgnoreBaseCallCheckAttribute(context)) return true;
-
-    //get overridden method
-    var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
-    var overriddenMethod = methodSymbol?.OverriddenMethod;
-    if (overriddenMethod == null) return true;
-
-    //check overridden method for BaseCallCheck attribute
-    var res = CheckForBaseCallCheckAttribute(overriddenMethod);
-    if (res == BaseCall.IsOptional)
-      return true;
-
-    return false;
-  }
-
   private bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
@@ -292,8 +300,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     {
       if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)"))
         return BaseCall.IsOptional;
+      if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)"))
+        return BaseCall.IsMandatory;
     }
 
-    return BaseCall.IsMandatory;
+    return BaseCall.Default;
   }
 }
