@@ -24,11 +24,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   // Feel free to use raw strings if you don't need localization.
   private static readonly LocalizableString Title = "Base Call missing";
-  private static readonly LocalizableString TitleLoopMessage = "Base Call is not allowed in a loop";
+  private static readonly LocalizableString TitleLoopMessage = "Base Call found in a loop";
 
   // The message that will be displayed to the user.
   private static readonly LocalizableString MessageFormat = "Base Call missing";
-  private static readonly LocalizableString MessageFormatLoopMessage = "Base Call found in a loop, not allowed here";
+  private static readonly LocalizableString MessageFormatLoopMessage = "Base Call found in a loop";
 
   private static readonly LocalizableString Description = "Base Call is missing.";
   private static readonly LocalizableString DescriptionLoopMessage = "Base Call found in a loop, not allowed here.";
@@ -74,17 +74,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return;
 
     if (AttributePreventingBaseCallCheck(context)) return;
-
-    //body is empty -> diagnostic
+    
     if (node.Body == null) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
-
-    //searching for basecalls by going through every line and checking if it's a basecall, example syntax tree:
 
     var childNodes = node.Body!.ChildNodes();
     foreach (var childNode in childNodes)
     {
+      if (BaseCallInAllIfsRecursive(context, childNode)) return;
       if (IsBaseCall(node, childNode)) return;
-      if (BaseCallInLoopRecursive(node, childNode))
+      if (BaseCallInLoopRecursive(context, childNode))
       {
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, node.GetLocation()));
         return;
@@ -109,8 +107,16 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             Expression: SimpleMemberAccessExpression
               Expression: BaseExpression
       */
-      var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
-      invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
+      if (childNode is not InvocationExpressionSyntax)
+      {
+        var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
+        invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
+      }
+      else //special case for use in BaseCallInAllIfsRecursive
+      {
+        invocationExpressionNode = (InvocationExpressionSyntax)childNode;
+      }
+
       simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
       _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
     }
@@ -144,9 +150,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private bool BaseCallInLoopRecursive (MethodDeclarationSyntax Methodnode, SyntaxNode node)
+  private bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    if (IsBaseCall(Methodnode, node)) return true;
+    var methodNode = (MethodDeclarationSyntax)context.Node;
+    if (IsBaseCall(methodNode, node)) return true;
     if (!IsLoop(node)) return false;
 
     var loopStatement = (node as ForStatementSyntax)?.Statement ??
@@ -155,15 +162,74 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     foreach (var childNode in loopStatement!.ChildNodes())
-      if (BaseCallInLoopRecursive(Methodnode, childNode))
+      if (BaseCallInLoopRecursive(context, childNode))
         return true;
 
     return false;
   }
-  
+
+  private bool BaseCallInAllIfsRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  {
+    var methodNode = (MethodDeclarationSyntax)context.Node;
+    if (IsBaseCall(methodNode, node)) return true;
+    if (!IsBranch(node)) return false;
+
+    var ifStatement = (node as IfStatementSyntax)?.Statement ??
+                      (node as ElseClauseSyntax)?.Statement;
+
+    var baseCallFound = true;
+    var baseCallFoundHere = false;
+    foreach (var childNode in ifStatement!.ChildNodes())
+    {
+      if (childNode is BlockSyntax blockSyntax)
+      {
+        //for if blocks with {}
+        foreach (var blockChildNode in blockSyntax.ChildNodes())
+        {
+          if (BaseCallInAllIfsRecursive(context, blockChildNode))
+            baseCallFoundHere = true;
+          if (IsLoop(blockChildNode))
+          {
+            if (BaseCallInLoopRecursive(context, blockChildNode))
+            {
+              context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, methodNode.GetLocation()));
+              return true;
+            }
+          }
+        }
+      }
+
+      //for if block without {}
+      else if (IsBranch(childNode))
+      {
+        baseCallFound = baseCallFound && BaseCallInAllIfsRecursive(context, childNode);
+      }
+      else if (IsLoop(childNode))
+      {
+        if (BaseCallInLoopRecursive(context, childNode))
+        {
+          context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, methodNode.GetLocation()));
+          return true;
+        }
+      }
+      else if (IsBaseCall(methodNode, childNode))
+      {
+        baseCallFoundHere = true;
+      }
+    }
+
+    return baseCallFound && baseCallFoundHere;
+  }
+
   private bool IsLoop (SyntaxNode node)
   {
     if (node is ForStatementSyntax || node is WhileStatementSyntax) return true;
+    return false;
+  }
+
+  private bool IsBranch (SyntaxNode node)
+  {
+    if (node is IfStatementSyntax || node is ElseClauseSyntax) return true;
     return false;
   }
 
