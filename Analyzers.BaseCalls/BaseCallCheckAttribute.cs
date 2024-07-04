@@ -29,6 +29,9 @@ public class BaseCallCheckAttribute : Attribute
   public BaseCallCheckAttribute(BaseCall mode)
   {
   }
+  public BaseCallCheckAttribute() : this(BaseCall.IsMandatory)
+  {
+  }
 }
 
 /// <summary>

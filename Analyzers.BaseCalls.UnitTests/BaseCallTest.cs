@@ -10,7 +10,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 public class BaseCallTest
 {
   [Fact]
-  public async Task Normal_BaseCall_ReportsNothing ()
+  public async Task BaseCall_ReportsNothing ()
   {
     const string text =
         """
@@ -38,6 +38,7 @@ public class BaseCallTest
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+
   [Fact]
   public async Task NoBaseCall_WithBaseCallMandatory_ReportsDiagnostic ()
   {
@@ -64,7 +65,7 @@ public class BaseCallTest
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.Rule)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
         .WithLocation(14, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -101,12 +102,12 @@ public class BaseCallTest
 
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.Rule)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
         .WithLocation(18, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
   public async Task BaseCall_with_wrong_param_datatypes_ReportsDiagnostic ()
   {
@@ -138,7 +139,7 @@ public class BaseCallTest
 
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.Rule)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
         .WithLocation(18, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -175,14 +176,13 @@ public class BaseCallTest
 
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.Rule)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
         .WithLocation(18, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
-  
   public async Task NoOverrideMethod_ReportsNothing ()
   {
     const string text =
@@ -213,36 +213,36 @@ public class BaseCallTest
   }
 
   [Fact]
-  public async Task NoBaseCall_WithBaseCallOptional_ReportsNothing()
+  public async Task NoBaseCall_WithBaseCallOptional_ReportsNothing ()
   {
     const string text =
-      """
-      using Remotion.Infrastructure.Analyzers.BaseCalls;
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
 
-      public abstract class BaseClass
-      {
-          [BaseCallCheck(BaseCall.IsOptional)]
-          public virtual void Test ()
-          {
-              int a = 5;
-          }
-      }
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsOptional)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
 
-      public class DerivedClass : BaseClass
-      {
-          public override void Test ()
-          {
-              int b = 7;
-              //base.Test();
-          }
-      }
-      """;
+        public class DerivedClass : BaseClass
+        {
+            public override void Test ()
+            {
+                int b = 7;
+                //base.Test();
+            }
+        }
+        """;
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
-  public async Task NoBaseCall_with_IgnoreBaseCall_ReportsNothing()
+  public async Task NoBaseCall_with_IgnoreBaseCall_ReportsNothing ()
   {
     const string text =
         """
@@ -268,6 +268,73 @@ public class BaseCallTest
         }
         """;
     var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact(Skip = "not implemented")]
+  public async Task BaseCall_In_If_ReportsNothing ()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void Test ()
+            {
+                int b = 7;
+                if (b == 6)
+                  base.Test();
+                else
+                  base.Test();
+            }
+        }
+        """;
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+  
+  [Fact(Skip="not implemented")]
+  public async Task BaseCall_In_loop_ReportsLoopDiagnostic ()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void Test ()
+            {
+              int b = 7;
+              for (int i = 0; i < 10; i++) {
+                  base.Test();
+              }
+            }
+        }
+        """;
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInLoop)
+        .WithLocation(14, 5)
+        .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }
