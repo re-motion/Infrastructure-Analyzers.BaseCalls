@@ -58,9 +58,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   public override void Initialize (AnalysisContext context)
   {
-    context.RegisterSyntaxNodeAction(
-        AnalyzeNode,
-        SyntaxKind.MethodDeclaration);
+    context.RegisterSyntaxNodeAction(AnalyzeNode, SyntaxKind.MethodDeclaration);
 
     context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
@@ -72,14 +70,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var node = (MethodDeclarationSyntax)context.Node;
 
     if (!BaseCallCheckShouldHappen(context)) return;
-    
+
     if (node.Body == null) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
 
     var childNodes = node.Body!.ChildNodes();
     foreach (var childNode in childNodes)
     {
       if (BaseCallInAllIfsRecursive(context, childNode)) return;
-      if (IsBaseCall(node, childNode)) return;
+      if (IsBaseCall(context, childNode)) return;
       if (BaseCallInLoopRecursive(context, childNode))
       {
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, node.GetLocation()));
@@ -94,34 +92,43 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
-    
+
     if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return false;
-    
+
     //check for IgnoreBaseCallCheck attribute
     if (HasIgnoreBaseCallCheckAttribute(context)) return false;
 
     //get overridden method
-    var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
-    var overriddenMethod = methodSymbol?.OverriddenMethod;
-    if (overriddenMethod == null) return false; //should not be possible
+    var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
+    var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
 
-    //check overridden method for BaseCallCheck attribute
-    var res = CheckForBaseCallCheckAttribute(overriddenMethod);
-    
-    if (res == BaseCall.IsOptional)
-      return false;
-    if (res == BaseCall.IsMandatory)
-      return true;
-    if (res == BaseCall.Default)
-      if (node.Modifiers.Any(SyntaxKind.VoidKeyword))
-        return true;
-    
-    
-    return false;
+    //check base method for attribute if it does not have one, next base method will be checked
+    while (overriddenMethodAsNode != null)
+    {
+      //check overridden method for BaseCallCheck attribute
+      var res = CheckForBaseCallCheckAttribute(overriddenMethodAsIMethodSymbol!);
+
+      switch (res)
+      {
+        case BaseCall.IsOptional:
+          return false;
+        case BaseCall.IsMandatory:
+          return true;
+        case BaseCall.Default:
+          break;
+      }
+
+      //go one generation back
+      overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
+      overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
+    }
+
+    return node.Modifiers.Any(SyntaxKind.VoidKeyword);
   }
 
-  private bool IsBaseCall (MethodDeclarationSyntax node, SyntaxNode childNode)
+  private bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
   {
+    var node = (MethodDeclarationSyntax)context.Node;
     InvocationExpressionSyntax invocationExpressionNode;
     MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
     try
@@ -134,14 +141,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             Expression: SimpleMemberAccessExpression
               Expression: BaseExpression
       */
-      if (childNode is not InvocationExpressionSyntax)
+      if (childNode is not InvocationExpressionSyntax syntax)
       {
         var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
         invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
       }
       else //special case for use in BaseCallInAllIfsRecursive
       {
-        invocationExpressionNode = (InvocationExpressionSyntax)childNode;
+        invocationExpressionNode = syntax;
       }
 
       simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
@@ -158,7 +165,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var parameters = node.ParameterList.Parameters;
     var numberOfParameters = parameters.Count;
     var typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
-    //int arity = node.Arity; TODO: implement for Generics
 
     //Method signature of BaseCall
     var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
@@ -167,7 +173,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
 
 
-    //check if its really a basecall
+    //check if it's really a basecall
     if (
         nameOfCalledMethod.Equals(methodName)
         && numberOfParameters == numberOfArguments
@@ -179,8 +185,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    var methodNode = (MethodDeclarationSyntax)context.Node;
-    if (IsBaseCall(methodNode, node)) return true;
+    if (IsBaseCall(context, node)) return true;
     if (!IsLoop(node)) return false;
 
     var loopStatement = (node as ForStatementSyntax)?.Statement ??
@@ -198,7 +203,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private bool BaseCallInAllIfsRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
     var methodNode = (MethodDeclarationSyntax)context.Node;
-    if (IsBaseCall(methodNode, node)) return true;
+    if (IsBaseCall(context, node)) return true;
     if (!IsBranch(node)) return false;
 
     var ifStatement = (node as IfStatementSyntax)?.Statement ??
@@ -239,7 +244,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           return true;
         }
       }
-      else if (IsBaseCall(methodNode, childNode))
+      else if (IsBaseCall(context, childNode))
       {
         baseCallFoundHere = true;
       }
@@ -250,14 +255,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private bool IsLoop (SyntaxNode node)
   {
-    if (node is ForStatementSyntax || node is WhileStatementSyntax) return true;
-    return false;
+    return node is ForStatementSyntax or WhileStatementSyntax;
   }
 
   private bool IsBranch (SyntaxNode node)
   {
-    if (node is IfStatementSyntax || node is ElseClauseSyntax) return true;
-    return false;
+    return node is IfStatementSyntax or ElseClauseSyntax;
   }
 
   private bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
