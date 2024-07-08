@@ -35,9 +35,9 @@ public class BaseCallCodeFixProvider : CodeFixProvider
 
     context.RegisterCodeFix(
         CodeAction.Create(
-            title: "Add [IgnoreBaseCallCheck] attribute",
-            createChangedDocument: c => AddIgnoreAttributeAsync(context.Document, methodDeclarationNode, c),
-            equivalenceKey: "Add [IgnoreBaseCallCheck] attribute"),
+            title: "Ignore with attribute",
+            createChangedDocument: c => AddIgnoreAttributeAsync(context.Document, methodDeclarationNode ?? throw new Exception("expected MethodDeclarationSyntax"), c),
+            equivalenceKey: "Ignore with attribute"),
         diagnostic);
   }
 
