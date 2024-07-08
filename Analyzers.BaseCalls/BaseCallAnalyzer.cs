@@ -116,14 +116,20 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           return true;
         case BaseCall.Default:
           break;
+        default:
+          throw new ArgumentOutOfRangeException();
       }
+
+      if (overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
+        return false;
+      
 
       //go one generation back
       overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
       overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
     }
 
-    return node.Modifiers.Any(SyntaxKind.VoidKeyword);
+    return ((PredefinedTypeSyntax)node.ReturnType).Keyword.IsKind(SyntaxKind.VoidKeyword);
   }
 
   private bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
@@ -190,14 +196,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var loopStatement = (node as ForStatementSyntax)?.Statement ??
                         (node as WhileStatementSyntax)?.Statement ??
-                        (node as ForEachStatementSyntax)?.Statement;
+                        (node as ForEachStatementSyntax)?.Statement ??
+                        (node as DoStatementSyntax)?.Statement;
 
 
-    foreach (var childNode in loopStatement!.ChildNodes())
-      if (BaseCallInLoopRecursive(context, childNode))
-        return true;
-
-    return false;
+    return loopStatement!.ChildNodes().Any(childNode => BaseCallInLoopRecursive(context, childNode));
   }
 
   private bool BaseCallInAllIfsRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
@@ -253,15 +256,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return baseCallFound && baseCallFoundHere;
   }
 
-  private bool IsLoop (SyntaxNode node)
-  {
-    return node is ForStatementSyntax or WhileStatementSyntax;
-  }
+  private readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
 
-  private bool IsBranch (SyntaxNode node)
-  {
-    return node is IfStatementSyntax or ElseClauseSyntax;
-  }
+  private readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
 
   private bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {

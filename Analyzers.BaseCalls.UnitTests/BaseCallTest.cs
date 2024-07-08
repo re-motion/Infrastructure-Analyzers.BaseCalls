@@ -1,6 +1,7 @@
 ﻿// SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Testing;
 using Xunit;
@@ -376,6 +377,38 @@ public class BaseCallTest
                     base.Test();
                 else
                   base.Test();
+            }
+        }
+        """;
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task BaseCall_and_If_ReportsNothing ()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void Test ()
+            {
+                int b = 7;
+                if (b == 6)
+                  _ = "";
+                base.Test();
             }
         }
         """;
