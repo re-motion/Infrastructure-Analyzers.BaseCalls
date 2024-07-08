@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System;
 using System.Linq;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
@@ -17,21 +18,17 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   // Preferred format of DiagnosticId is Your Prefix + Number, e.g. CA1234.
   private const string DiagnosticId = "RMBCA0001";
-  private const string DiagnosticIdLoopMessage = "RMBCA0002";
 
   // The category of the diagnostic (Design, Naming etc.).
   private const string Category = "Usage";
 
   // Feel free to use raw strings if you don't need localization.
   private static readonly LocalizableString Title = "Base Call missing";
-  private static readonly LocalizableString TitleLoopMessage = "Base Call found in a loop";
 
   // The message that will be displayed to the user.
   private static readonly LocalizableString MessageFormat = "Base Call missing";
-  private static readonly LocalizableString MessageFormatLoopMessage = "Base Call found in a loop";
 
   private static readonly LocalizableString Description = "Base Call is missing.";
-  private static readonly LocalizableString DescriptionLoopMessage = "Base Call found in a loop, not allowed here.";
 
   // Don't forget to add your rules to the AnalyzerReleases.Shipped/Unshipped.md
   public static readonly DiagnosticDescriptor DiagnosticDescriptionNoBaseCallFound = new(
@@ -42,6 +39,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       DiagnosticSeverity.Warning,
       true,
       Description);
+
+
+  private const string DiagnosticIdLoopMessage = "RMBCA0002";
+  private static readonly LocalizableString TitleLoopMessage = "Base Call found in a loop";
+  private static readonly LocalizableString MessageFormatLoopMessage = "Base Call found in a loop";
+  private static readonly LocalizableString DescriptionLoopMessage = "Base Call found in a loop, not allowed here.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInLoop = new(
       DiagnosticIdLoopMessage,
@@ -59,7 +62,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   public override void Initialize (AnalysisContext context)
   {
     context.RegisterSyntaxNodeAction(AnalyzeNode, SyntaxKind.MethodDeclaration);
-
     context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
     context.EnableConcurrentExecution();
@@ -71,25 +73,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (!BaseCallCheckShouldHappen(context)) return;
 
-    if (node.Body == null) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
+    if (node.Body == null) ReportBaseCallMissingDiagnostic(context);
 
     var childNodes = node.Body!.ChildNodes();
     foreach (var childNode in childNodes)
     {
       if (BaseCallInAllIfsRecursive(context, childNode)) return;
       if (IsBaseCall(context, childNode)) return;
-      if (BaseCallInLoopRecursive(context, childNode))
-      {
-        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, node.GetLocation()));
-        return;
-      }
+      if (!BaseCallInLoopRecursive(context, childNode))
+        continue;
+      ReportBaseCallInLoopDiagnostic(context);
+      return;
     }
 
     //no basecall found -> Warning
-    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, node.GetLocation()));
+    ReportBaseCallMissingDiagnostic(context);
   }
 
-  private bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
+  private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
 
@@ -122,7 +123,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       if (overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
         return false;
-      
+
 
       //go one generation back
       overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
@@ -132,7 +133,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return ((PredefinedTypeSyntax)node.ReturnType).Keyword.IsKind(SyntaxKind.VoidKeyword);
   }
 
-  private bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
+  private static bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
   {
     var node = (MethodDeclarationSyntax)context.Node;
     InvocationExpressionSyntax invocationExpressionNode;
@@ -180,16 +181,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //check if it's really a basecall
-    if (
-        nameOfCalledMethod.Equals(methodName)
-        && numberOfParameters == numberOfArguments
-        && typesOfParameters.Equals(typesOfArguments)
-    )
-      return true;
-    return false;
+    return nameOfCalledMethod.Equals(methodName)
+           && numberOfParameters == numberOfArguments
+           && typesOfParameters.Equals(typesOfArguments);
   }
 
-  private bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  private static bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
     if (IsBaseCall(context, node)) return true;
     if (!IsLoop(node)) return false;
@@ -203,9 +200,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return loopStatement!.ChildNodes().Any(childNode => BaseCallInLoopRecursive(context, childNode));
   }
 
-  private bool BaseCallInAllIfsRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  private static bool BaseCallInAllIfsRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    var methodNode = (MethodDeclarationSyntax)context.Node;
     if (IsBaseCall(context, node)) return true;
     if (!IsBranch(node)) return false;
 
@@ -227,7 +223,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           {
             if (BaseCallInLoopRecursive(context, blockChildNode))
             {
-              context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, methodNode.GetLocation()));
+              ReportBaseCallInLoopDiagnostic(context);
               return true;
             }
           }
@@ -241,11 +237,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
       else if (IsLoop(childNode))
       {
-        if (BaseCallInLoopRecursive(context, childNode))
-        {
-          context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, methodNode.GetLocation()));
-          return true;
-        }
+        if (!BaseCallInLoopRecursive(context, childNode))
+          continue;
+        ReportBaseCallInLoopDiagnostic(context);
+        return true;
       }
       else if (IsBaseCall(context, childNode))
       {
@@ -256,11 +251,39 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return baseCallFound && baseCallFoundHere;
   }
 
-  private readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
+  public static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
 
-  private readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
+  public static readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
 
-  private bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
+  public static void ReportBaseCallMissingDiagnostic (SyntaxNodeAnalysisContext context)
+  {
+    var node = (MethodDeclarationSyntax)context.Node;
+    //location of the squigglies (whole line of the method declaration)
+    var squiggliesLocation = Location.Create(
+        node.SyntaxTree,
+        TextSpan.FromBounds(
+            node.GetLeadingTrivia().Span.End,
+            node.ParameterList.Span.End
+        )
+    );
+    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, squiggliesLocation));
+  }
+
+  public static void ReportBaseCallInLoopDiagnostic (SyntaxNodeAnalysisContext context)
+  {
+    var node = (MethodDeclarationSyntax)context.Node;
+    //location of the squigglies (whole line of the method declaration)
+    var squiggliesLocation = Location.Create(
+        node.SyntaxTree,
+        TextSpan.FromBounds(
+            node.GetLeadingTrivia().Span.End,
+            node.ParameterList.Span.End
+        )
+    );
+    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, squiggliesLocation));
+  }
+
+  public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
     foreach (var attributeListSyntax in node.AttributeLists)
@@ -280,7 +303,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
+  private static BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
   {
     //mostly ChatGPT
     var attributes = overriddenMethod.GetAttributes();
