@@ -15,10 +15,10 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public enum BaseCallType
 {
-  Normal = 0,
-  None = 1,
-  InLoop = 2,
-  Multiple = 3
+  Normal,
+  None,
+  InLoop,
+  Multiple
 }
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -279,18 +279,21 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var parameters = node.ParameterList.Parameters;
     var numberOfParameters = parameters.Count;
     var typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
+    //var s = context.SemanticModel.GetSymbolInfo(node);
 
     //Method signature of BaseCall
     var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
     var arguments = invocationExpressionNode.ArgumentList.Arguments;
     int numberOfArguments = arguments.Count;
     Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
+    //var h = context.SemanticModel.GetSymbolInfo(simpleMemberAccessExpressionNode);
+
 
 
     //check if it's really a basecall
     return nameOfCalledMethod.Equals(methodName)
            && numberOfParameters == numberOfArguments
-           && typesOfParameters.Equals(typesOfArguments);
+           && typesOfParameters.Equals(typesOfArguments); //TODO: wrong basecall diagnostic
   }
 
   private static bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)

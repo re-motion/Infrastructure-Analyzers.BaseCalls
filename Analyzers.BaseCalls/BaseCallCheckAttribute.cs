@@ -7,9 +7,9 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public enum BaseCall
 {
-  IsOptional = 0,
-  IsMandatory = 1, 
-  Default = 2
+  Default,
+  IsOptional,
+  IsMandatory 
 }
 
 /// <summary>
