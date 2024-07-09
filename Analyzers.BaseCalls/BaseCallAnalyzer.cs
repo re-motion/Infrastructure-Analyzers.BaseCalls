@@ -272,28 +272,31 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     var node = context.Node as MethodDeclarationSyntax;
-    if (node == null) return true;
+    if (node == null) return true; //for anonymous methods and local functions
 
+    
     //Method signature
     var methodName = node.Identifier.Text;
     var parameters = node.ParameterList.Parameters;
     var numberOfParameters = parameters.Count;
-    var typesOfParameters = parameters.Select(param => param.GetType()).ToArray();
-    //var s = context.SemanticModel.GetSymbolInfo(node);
+    var typesOfParameters = parameters.Select(param => 
+        context.SemanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
 
     //Method signature of BaseCall
     var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
     var arguments = invocationExpressionNode.ArgumentList.Arguments;
     int numberOfArguments = arguments.Count;
-    Type[] typesOfArguments = arguments.Select(arg => arg.GetType()).ToArray();
-    //var h = context.SemanticModel.GetSymbolInfo(simpleMemberAccessExpressionNode);
+    var typesOfArguments = arguments.Select(arg => 
+        context.SemanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
 
 
 
     //check if it's really a basecall
     return nameOfCalledMethod.Equals(methodName)
            && numberOfParameters == numberOfArguments
-           && typesOfParameters.Equals(typesOfArguments); //TODO: wrong basecall diagnostic
+           && typesOfParameters.Length == typesOfArguments.Length
+           && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
+               .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)); //TODO: wrong basecall diagnostic
   }
 
   private static bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
