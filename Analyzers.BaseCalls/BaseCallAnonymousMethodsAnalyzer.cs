@@ -62,26 +62,26 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
       body = anonymousMethod.Body;
     }
 
-    if (ContainsBaseCall(body))
+    if (ContainsBaseCall(context, body))
     {
       ReportBaseCallInAnonymousMethodDiagnostic(context, anonymousMethod);
     }
   }
 
-  private static bool ContainsBaseCall (SyntaxNode node)
+  private static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
     if (node is ExpressionSyntax expression)
     {
-      return IsBaseCall(expression);
+      return IsBaseCall(context, expression);
     }
 
     foreach (var childNode in node.DescendantNodes())
     {
-      if (IsBaseCall(childNode))
+      if (IsBaseCall(context, childNode))
         return true;
-      if (!BaseCallInLoopRecursive(childNode))
+      if (!BaseCallInLoopRecursive(context, childNode))
         continue;
-      if (BaseCallInAllIfsRecursive(childNode))
+      if (BaseCallInAllIfsRecursive(context, childNode))
       {
         return true;
       }
@@ -90,7 +90,7 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private static bool IsBaseCall (SyntaxNode childNode)
+  private static bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
   {
     if (childNode is InvocationExpressionSyntax invocationExpressionNode1)
     {
@@ -113,9 +113,9 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private static bool BaseCallInLoopRecursive (SyntaxNode node)
+  private static bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    if (IsBaseCall(node)) return true;
+    if (IsBaseCall(context, node)) return true;
     if (!BaseCallAnalyzer.IsLoop(node)) return false;
 
     var loopStatement = (node as ForStatementSyntax)?.Statement ??
@@ -124,12 +124,12 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
                         (node as DoStatementSyntax)?.Statement;
 
 
-    return loopStatement!.ChildNodes().Any(BaseCallInLoopRecursive);
+    return loopStatement!.ChildNodes().Any(cn => BaseCallInLoopRecursive(context, cn));
   }
 
-  private static bool BaseCallInAllIfsRecursive (SyntaxNode node)
+  private static bool BaseCallInAllIfsRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    if (IsBaseCall(node)) return true;
+    if (IsBaseCall(context, node)) return true;
     if (!BaseCallAnalyzer.IsBranch(node)) return false;
 
     var ifStatement = (node as IfStatementSyntax)?.Statement ??
@@ -144,11 +144,11 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
         //for if blocks with {}
         foreach (var blockChildNode in blockSyntax.ChildNodes())
         {
-          if (BaseCallInAllIfsRecursive(blockChildNode))
+          if (BaseCallInAllIfsRecursive(context, blockChildNode))
             baseCallFoundHere = true;
           if (!BaseCallAnalyzer.IsLoop(blockChildNode))
             continue;
-          if (!BaseCallInLoopRecursive(blockChildNode))
+          if (!BaseCallInLoopRecursive(context, blockChildNode))
             continue;
           baseCallFoundHere = false;
           break;
@@ -158,16 +158,16 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
       //for if block without {}
       else if (BaseCallAnalyzer.IsBranch(childNode))
       {
-        baseCallFound = baseCallFound && BaseCallInAllIfsRecursive(childNode);
+        baseCallFound = baseCallFound && BaseCallInAllIfsRecursive(context, childNode);
       }
       else if (BaseCallAnalyzer.IsLoop(childNode))
       {
-        if (!BaseCallInLoopRecursive(childNode))
+        if (!BaseCallInLoopRecursive(context, childNode))
           continue;
         baseCallFoundHere = false;
         break;
       }
-      else if (IsBaseCall(childNode))
+      else if (IsBaseCall(context, childNode))
       {
         baseCallFoundHere = true;
       }
