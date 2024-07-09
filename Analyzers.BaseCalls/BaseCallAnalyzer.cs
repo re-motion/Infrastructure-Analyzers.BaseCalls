@@ -107,6 +107,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       case BaseCallType.Multiple:
         ReportMulipleBaseCallsPresentDiagnostic(context);
         return;
+      default:
+        throw new ArgumentOutOfRangeException();
     }
   }
 
@@ -125,11 +127,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       {
         if (BaseCallInAllIfsRecursive(context, childNode)) baseCalls++;
       }
+
       if (IsBaseCall(context, childNode))
       {
         baseCalls++;
         continue;
       }
+
       if (BaseCallInLoopRecursive(context, childNode))
         return BaseCallType.InLoop;
     }
@@ -138,12 +142,61 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     {
         1 => BaseCallType.Normal,
         > 1 => BaseCallType.Multiple,
-        0 => BaseCallType.None
+        <= 0 => BaseCallType.None
     };
+  }
+
+  public static bool SimpleContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  {
+    if (node is ExpressionSyntax expression)
+    {
+      return IsBaseCall(context, expression);
+    }
+
+    foreach (var childNode in node.DescendantNodes())
+    {
+      if (IsBaseCall(context, childNode))
+        return true;
+      if (!BaseCallInLoopRecursive(context, childNode))
+        continue;
+      if (BaseCallInAllIfsRecursive(context, childNode))
+      {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
   {
+    BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
+    {
+      //mostly ChatGPT
+      var attributes = overriddenMethod.GetAttributes();
+      var attributeDescriptions = attributes.Select(
+          attr =>
+          {
+            var attributeClass = attr.AttributeClass;
+            var attributeNamespace = attributeClass?.ContainingNamespace.ToDisplayString();
+            var valueOfEnumArgument = attr.ConstructorArguments[0].Value;
+            if (valueOfEnumArgument != null)
+              return $"{attributeNamespace}.{attributeClass?.Name}(BaseCall.{Enum.GetName(typeof(BaseCall), valueOfEnumArgument)})";
+            return $"{attributeNamespace}.{attributeClass?.Name}";
+          }).ToList();
+
+
+      foreach (var attributeDescription in attributeDescriptions)
+      {
+        if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)"))
+          return BaseCall.IsOptional;
+        if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)"))
+          return BaseCall.IsMandatory;
+      }
+
+      return BaseCall.Default;
+    }
+    
     var node = (MethodDeclarationSyntax)context.Node;
 
     if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return false;
@@ -187,7 +240,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
   {
-    var node = (MethodDeclarationSyntax)context.Node;
     InvocationExpressionSyntax invocationExpressionNode;
     MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
     try
@@ -218,6 +270,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       return false;
     }
 
+
+    var node = context.Node as MethodDeclarationSyntax;
+    if (node == null) return true;
 
     //Method signature
     var methodName = node.Identifier.Text;
@@ -303,11 +358,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return baseCallFound && baseCallFoundHere;
   }
 
-  public static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
 
-  public static readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
+  private static readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
 
-  public static void ReportBaseCallMissingDiagnostic (SyntaxNodeAnalysisContext context)
+  private static void ReportBaseCallMissingDiagnostic (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
     //location of the squigglies (whole line of the method declaration)
@@ -321,7 +376,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionNoBaseCallFound, squiggliesLocation));
   }
 
-  public static void ReportBaseCallInLoopDiagnostic (SyntaxNodeAnalysisContext context)
+  private static void ReportBaseCallInLoopDiagnostic (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
     //location of the squigglies (whole line of the method declaration)
@@ -335,7 +390,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, squiggliesLocation));
   }
 
-  public static void ReportMulipleBaseCallsPresentDiagnostic (SyntaxNodeAnalysisContext context)
+  private static void ReportMulipleBaseCallsPresentDiagnostic (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
     //location of the squigglies (whole line of the method declaration)
@@ -351,8 +406,19 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
-    var node = (MethodDeclarationSyntax)context.Node;
-    foreach (var attributeListSyntax in node.AttributeLists)
+    SyntaxList<AttributeListSyntax> attributeLists;
+
+    if (context.Node is MethodDeclarationSyntax methodDeclaration)
+      attributeLists = methodDeclaration.AttributeLists;
+
+    else if (context.Node is LocalFunctionStatementSyntax localFunction)
+      attributeLists = localFunction.AttributeLists;
+
+    else
+      throw new Exception("Expected a method declaration or function declaration");
+
+
+    foreach (var attributeListSyntax in attributeLists)
     {
       foreach (var attribute in attributeListSyntax.Attributes)
       {
@@ -367,32 +433,5 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
 
     return false;
-  }
-
-  private static BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
-  {
-    //mostly ChatGPT
-    var attributes = overriddenMethod.GetAttributes();
-    var attributeDescriptions = attributes.Select(
-        attr =>
-        {
-          var attributeClass = attr.AttributeClass;
-          var attributeNamespace = attributeClass?.ContainingNamespace.ToDisplayString();
-          var valueOfEnumArgument = attr.ConstructorArguments[0].Value;
-          if (valueOfEnumArgument != null)
-            return $"{attributeNamespace}.{attributeClass?.Name}(BaseCall.{Enum.GetName(typeof(BaseCall), valueOfEnumArgument)})";
-          return $"{attributeNamespace}.{attributeClass?.Name}";
-        }).ToList();
-
-
-    foreach (var attributeDescription in attributeDescriptions)
-    {
-      if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)"))
-        return BaseCall.IsOptional;
-      if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)"))
-        return BaseCall.IsMandatory;
-    }
-
-    return BaseCall.Default;
   }
 }
