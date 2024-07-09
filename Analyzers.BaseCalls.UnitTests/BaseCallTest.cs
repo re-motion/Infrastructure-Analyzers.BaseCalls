@@ -3,7 +3,9 @@
 
 using System;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
+using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Xunit;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
@@ -571,5 +573,120 @@ public class BaseCallTest
         .WithLocation(14, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+  
+  [Fact]
+  public async Task MultipleBaseCalls_ReportsDiagnostic()
+  {
+    const string text = @"
+                class BaseClass
+                {
+                    public virtual void Method() { }
+                }
+
+                class DerivedClass : BaseClass
+                {
+                    public override void {|#0:Method|}()
+                    {
+                        base.Method();
+                        base.Method();
+
+                    }
+                }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
+        .WithLocation(9, 21)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task MultipleBaseCalls_InDifferentBranches_ReportsDiagnostic()
+  {
+    const string text = @"
+                class BaseClass
+                {
+                    public virtual void Method() { }
+                }
+
+                class DerivedClass : BaseClass
+                {
+                    public override void {|#0:Method|}()
+                    {
+                        if (true)
+                        {
+                            base.Method();
+                        }
+                        else
+                        {
+                            base.Method();
+                        }
+                        base.Method();
+                    }
+                }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
+        .WithLocation(9, 21)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact(Skip = "does not work")]
+  //[Obsolete("Obsolete")]
+  public async Task YourCodeFix_FixesIssue ()
+  {
+    var test = new CSharpCodeFixTest<BaseCallAnalyzer, BaseCallCodeFixProvider, XUnitVerifier>
+               {
+                   TestCode = @"
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+public abstract class BaseClass
+{
+    [BaseCallCheck(BaseCall.IsMandatory)]
+    public virtual void Test ()
+    {
+        int a = 5;
+    }
+}
+
+public class DerivedClass : BaseClass
+{
+    public override void Test ()
+    {
+        int b = 7;
+        //base.Test();
+    }
+}",
+                   FixedCode = @"
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+public abstract class BaseClass
+{
+    [BaseCallCheck(BaseCall.IsMandatory)]
+    public virtual void Test ()
+    {
+        int a = 5;
+    }
+}
+
+public class DerivedClass : BaseClass
+{
+    [IgnoreBaseCallCheck]
+    public override void Test ()
+    {
+        int b = 7;
+        //base.Test();
+    }
+}",
+               };
+
+    test.ExpectedDiagnostics.Add(
+        CSharpCodeFixVerifier<BaseCallAnalyzer, BaseCallCodeFixProvider, XUnitVerifier>
+            .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+            .WithLocation(14, 5)
+            .WithArguments("Test"));
+
+
+    await test.RunAsync();
   }
 }

@@ -13,6 +13,14 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
+public enum BaseCallType
+{
+  Normal = 0,
+  None = 1,
+  InLoop = 2,
+  Multiple = 3
+}
+
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
@@ -55,9 +63,23 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       true,
       DescriptionLoopMessage);
 
+  private const string DiagnosticIdMultipleBaseCalls = "RMBCA0005";
+  private static readonly LocalizableString TitleMultipleBaseCalls = "multiple BaseCalls found";
+  private static readonly LocalizableString MessageMultipleBaseCalls = "multiple BaseCalls found";
+  private static readonly LocalizableString DescriptionMultipleBaseCalls = "multiple BaseCalls found in this method, there should only be one BaseCall.";
+
+  public static readonly DiagnosticDescriptor DiagnosticDescriptionMultipleBaseCalls = new(
+      DiagnosticIdMultipleBaseCalls,
+      TitleMultipleBaseCalls,
+      MessageMultipleBaseCalls,
+      Category,
+      DiagnosticSeverity.Warning,
+      true,
+      DescriptionMultipleBaseCalls);
+
   // Keep in mind: you have to list your rules here.
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-    [DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop];
+    [DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls];
 
   public override void Initialize (AnalysisContext context)
   {
@@ -69,25 +91,55 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private void AnalyzeNode (SyntaxNodeAnalysisContext context)
   {
-    var node = (MethodDeclarationSyntax)context.Node;
-
     if (!BaseCallCheckShouldHappen(context)) return;
+
+    var res = ContainsBaseCall(context);
+    switch (res)
+    {
+      case BaseCallType.Normal:
+        return;
+      case BaseCallType.None:
+        ReportBaseCallMissingDiagnostic(context);
+        return;
+      case BaseCallType.InLoop:
+        ReportBaseCallInLoopDiagnostic(context);
+        return;
+      case BaseCallType.Multiple:
+        ReportMulipleBaseCallsPresentDiagnostic(context);
+        return;
+    }
+  }
+
+  private static BaseCallType ContainsBaseCall (SyntaxNodeAnalysisContext context)
+  {
+    var node = (context.Node as MethodDeclarationSyntax)!;
 
     if (node.Body == null) ReportBaseCallMissingDiagnostic(context);
 
     var childNodes = node.Body!.ChildNodes();
+
+    var baseCalls = 0;
     foreach (var childNode in childNodes)
     {
-      if (BaseCallInAllIfsRecursive(context, childNode)) return;
-      if (IsBaseCall(context, childNode)) return;
-      if (!BaseCallInLoopRecursive(context, childNode))
+      if (IsBranch(childNode))
+      {
+        if (BaseCallInAllIfsRecursive(context, childNode)) baseCalls++;
+      }
+      if (IsBaseCall(context, childNode))
+      {
+        baseCalls++;
         continue;
-      ReportBaseCallInLoopDiagnostic(context);
-      return;
+      }
+      if (BaseCallInLoopRecursive(context, childNode))
+        return BaseCallType.InLoop;
     }
 
-    //no basecall found -> Warning
-    ReportBaseCallMissingDiagnostic(context);
+    return baseCalls switch
+    {
+        1 => BaseCallType.Normal,
+        > 1 => BaseCallType.Multiple,
+        0 => BaseCallType.None
+    };
   }
 
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
@@ -281,6 +333,20 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         )
     );
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, squiggliesLocation));
+  }
+
+  public static void ReportMulipleBaseCallsPresentDiagnostic (SyntaxNodeAnalysisContext context)
+  {
+    var node = (MethodDeclarationSyntax)context.Node;
+    //location of the squigglies (whole line of the method declaration)
+    var squiggliesLocation = Location.Create(
+        node.SyntaxTree,
+        TextSpan.FromBounds(
+            node.GetLeadingTrivia().Span.End,
+            node.ParameterList.Span.End
+        )
+    );
+    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionMultipleBaseCalls, squiggliesLocation));
   }
 
   public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
