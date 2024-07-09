@@ -149,6 +149,41 @@ public class BaseCallTest
   }
 
   [Fact]
+  public async Task BaseCall_with_correct_param_datatypes_ReportsNothing ()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test (string c)
+            {
+                int a = 5;
+            }
+            public void Test(int a)
+            {
+              return;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void Test (string c)
+            {
+                string b = "";
+                base.Test(b); // not a baseCall
+            }
+        }
+
+        """;
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
   public async Task BaseCall_with_wrong_number_of_params_ReportsDiagnostic ()
   {
     const string text =
@@ -574,9 +609,9 @@ public class BaseCallTest
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
-  public async Task MultipleBaseCalls_ReportsDiagnostic()
+  public async Task MultipleBaseCalls_ReportsDiagnostic ()
   {
     const string text = @"
                 class BaseClass
@@ -601,7 +636,7 @@ public class BaseCallTest
   }
 
   [Fact]
-  public async Task MultipleBaseCalls_InDifferentBranches_ReportsDiagnostic()
+  public async Task MultipleBaseCalls_InDifferentBranches_ReportsDiagnostic ()
   {
     const string text = @"
                 class BaseClass
