@@ -18,7 +18,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 public class BaseCallCodeFixProvider : CodeFixProvider
 {
   public override ImmutableArray<string> FixableDiagnosticIds =>
-      ["RMBCA0001"];
+      ["RMBCA0001", "RMBCA0005"];
 
   public sealed override FixAllProvider GetFixAllProvider()
   {
