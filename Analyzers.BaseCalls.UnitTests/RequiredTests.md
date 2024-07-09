@@ -69,7 +69,7 @@ public interface Parent {
     void Method();
 }
 
-public class Derivation : Mixins<..., Parent> {
+public class Derivation : Mixin<..., Parent> {
     [OverrideTarget]
     public void Method () { Next.Method(); ... }
 }
