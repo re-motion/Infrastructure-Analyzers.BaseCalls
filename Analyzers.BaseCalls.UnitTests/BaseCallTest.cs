@@ -104,10 +104,18 @@ public class BaseCallTest
         }
 
         """;
+    
+    var expected = new DiagnosticResult[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+                           .WithLocation(18, 5)
+                           .WithArguments("Test"),
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
-        .WithLocation(18, 5)
-        .WithArguments("Test");
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
+                           .WithLocation(21, 9)
+                           .WithArguments("Test")
+                   };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
@@ -142,9 +150,18 @@ public class BaseCallTest
 
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
-        .WithLocation(18, 5)
-        .WithArguments("Test");
+
+    var expected = new DiagnosticResult[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+                           .WithLocation(18, 5)
+                           .WithArguments("Test"),
+
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
+                           .WithLocation(21, 9)
+                           .WithArguments("Test")
+                   };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
@@ -213,10 +230,18 @@ public class BaseCallTest
         }
 
         """;
+    
+    var expected = new DiagnosticResult[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+                           .WithLocation(18, 5)
+                           .WithArguments("Test"),
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
-        .WithLocation(18, 5)
-        .WithArguments("Test");
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
+                           .WithLocation(21, 9)
+                           .WithArguments("Test")
+                   };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
@@ -666,7 +691,7 @@ public class BaseCallTest
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
-  [Fact(Skip = "does not work")]
+  [Fact(Skip = "test does not work")]
   //[Obsolete("Obsolete")]
   public async Task YourCodeFix_FixesIssue ()
   {

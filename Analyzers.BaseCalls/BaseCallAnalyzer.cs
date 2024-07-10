@@ -77,9 +77,23 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       true,
       DescriptionMultipleBaseCalls);
 
+  private const string DiagnosticIdWrongBaseCall = "RMBCA0006";
+  private static readonly LocalizableString TitleWrongBaseCall = "incorrect BaseCall";
+  private static readonly LocalizableString MessageWrongBaseCall = "BaseCall does not call the overridden Method";
+  private static readonly LocalizableString DescriptionWrongBaseCall = "BaseCall does not call the overridden Method.";
+
+  public static readonly DiagnosticDescriptor DiagnosticDescriptionWrongBaseCall = new(
+      DiagnosticIdWrongBaseCall,
+      TitleWrongBaseCall,
+      MessageWrongBaseCall,
+      Category,
+      DiagnosticSeverity.Warning,
+      true,
+      DescriptionWrongBaseCall);
+
   // Keep in mind: you have to list your rules here.
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-    [DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls];
+    [DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls, DiagnosticDescriptionWrongBaseCall];
 
   public override void Initialize (AnalysisContext context)
   {
@@ -105,7 +119,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         ReportBaseCallInLoopDiagnostic(context);
         return;
       case BaseCallType.Multiple:
-        ReportMulipleBaseCallsPresentDiagnostic(context);
+        ReportMultipleBaseCallsPresentDiagnostic(context);
         return;
       default:
         throw new ArgumentOutOfRangeException();
@@ -134,7 +148,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         continue;
       }
 
-      if (BaseCallInLoopRecursive(context, childNode))
+      if (IsLoop(childNode) && BaseCallInLoopRecursive(context, childNode))
         return BaseCallType.InLoop;
     }
 
@@ -196,7 +210,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       return BaseCall.Default;
     }
-    
+
     var node = (MethodDeclarationSyntax)context.Node;
 
     if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return false;
@@ -252,6 +266,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             Expression: SimpleMemberAccessExpression
               Expression: BaseExpression
       */
+
       if (childNode is not InvocationExpressionSyntax syntax)
       {
         var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
@@ -271,32 +286,37 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
 
 
-    var node = context.Node as MethodDeclarationSyntax;
-    if (node == null) return true; //for anonymous methods and local functions
+    if (context.Node is not MethodDeclarationSyntax node) return true; //for anonymous methods and local functions
 
-    
+
     //Method signature
     var methodName = node.Identifier.Text;
     var parameters = node.ParameterList.Parameters;
     var numberOfParameters = parameters.Count;
-    var typesOfParameters = parameters.Select(param => 
-        context.SemanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
+    var typesOfParameters = parameters.Select(
+        param =>
+            context.SemanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
 
     //Method signature of BaseCall
     var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
     var arguments = invocationExpressionNode.ArgumentList.Arguments;
-    int numberOfArguments = arguments.Count;
-    var typesOfArguments = arguments.Select(arg => 
-        context.SemanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
-
+    var numberOfArguments = arguments.Count;
+    var typesOfArguments = arguments.Select(
+        arg =>
+            context.SemanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
 
 
     //check if it's really a basecall
-    return nameOfCalledMethod.Equals(methodName)
-           && numberOfParameters == numberOfArguments
-           && typesOfParameters.Length == typesOfArguments.Length
-           && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
-               .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)); //TODO: wrong basecall diagnostic
+    if (nameOfCalledMethod.Equals(methodName)
+        && numberOfParameters == numberOfArguments
+        && typesOfParameters.Length == typesOfArguments.Length
+        && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
+            .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
+      return true;
+    
+    //wrong basecall
+    ReportWrongBaseCallDiagnostic(context, invocationExpressionNode);
+    return false;
   }
 
   private static bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
@@ -396,7 +416,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLoop, squiggliesLocation));
   }
 
-  private static void ReportMulipleBaseCallsPresentDiagnostic (SyntaxNodeAnalysisContext context)
+  private static void ReportMultipleBaseCallsPresentDiagnostic (SyntaxNodeAnalysisContext context)
   {
     var node = (MethodDeclarationSyntax)context.Node;
     //location of the squigglies (whole line of the method declaration)
@@ -408,6 +428,18 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         )
     );
     context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionMultipleBaseCalls, squiggliesLocation));
+  }
+
+  private static void ReportWrongBaseCallDiagnostic (SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocationExpressionNode)
+  {
+    var squiggliesLocation = Location.Create(
+        invocationExpressionNode.SyntaxTree,
+        TextSpan.FromBounds(
+            invocationExpressionNode.GetLeadingTrivia().Span.End,
+            invocationExpressionNode.ArgumentList.Span.End
+        )
+    );
+    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionWrongBaseCall, squiggliesLocation));
   }
 
   public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
