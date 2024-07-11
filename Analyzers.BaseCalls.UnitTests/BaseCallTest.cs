@@ -104,7 +104,7 @@ public class BaseCallTest
         }
 
         """;
-    
+
     var expected = new DiagnosticResult[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
@@ -230,7 +230,7 @@ public class BaseCallTest
         }
 
         """;
-    
+
     var expected = new DiagnosticResult[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
@@ -748,5 +748,566 @@ public class DerivedClass : BaseClass
 
 
     await test.RunAsync();
+  }
+
+  [Fact]
+  public async Task IfsAndReturns_ReportsNothing ()
+  {
+    const string text =
+        """
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass
+        {
+          [BaseCallCheck(BaseCall.IsMandatory)]
+          public virtual void x()
+          {
+            int a = 5;
+          }
+        }
+                
+        public class DerivedClass : BaseClass
+        {
+          private bool condition1 = true;
+          private bool condition2 = false;
+          private bool condition3 = true;
+          private bool condition4 = false;
+                
+          public override void x ()
+          {
+            if (condition1)
+            {
+              if (condition2)
+              {
+                base.x();
+                return;
+              }
+              else
+              {
+                base.x(); 
+                return;
+              }
+            }
+            else
+            {
+              if (condition3)
+              {
+                base.x();
+                return;
+              }
+              else if (condition4)
+              {
+                
+              }
+              else if (condition1)
+              {
+                base.x();
+                return;
+              }
+                
+              base.x();
+            }
+          }
+        }
+        """;
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task IfsAndReturns_ReportsMultipleDiagnostic ()
+  {
+    const string text =
+        """
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass
+        {
+          [BaseCallCheck(BaseCall.IsMandatory)]
+          public virtual void x()
+          {
+            int a = 5;
+          }
+        }
+                
+        public class DerivedClass : BaseClass
+        {
+          private bool condition1 = true;
+          private bool condition2 = false;
+          private bool condition3 = true;
+          private bool condition4 = false;
+                
+          public override void x ()
+          {
+            if (condition1)
+            {
+              if (condition2)
+              {
+                base.x();
+                return;
+              }
+              else
+              {
+                base.x(); 
+                return;
+              }
+            }
+            else
+            {
+              if (condition3)
+              {
+                base.x();
+                return;
+              }
+              else if (condition4)
+              {
+                base.x(); //one too much
+              }
+              else if (condition1)
+              {
+                base.x();
+                return;
+              }
+                
+              base.x();
+            }
+          }
+        }
+        """;
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
+        .WithLocation(23, 3)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task IfsAndReturns_ReportsMissingDiagnostic ()
+  {
+    const string text =
+        """
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass
+        {
+          [BaseCallCheck(BaseCall.IsMandatory)]
+          public virtual void x()
+          {
+            int a = 5;
+          }
+        }
+                
+        public class DerivedClass : BaseClass
+        {
+          private bool condition1 = true;
+          private bool condition2 = false;
+          private bool condition3 = true;
+          private bool condition4 = false;
+                
+          public override void x ()
+          {
+            if (condition1)
+            {
+              if (condition2)
+              {
+                base.x();
+                return;
+              }
+              else
+              {
+                base.x(); 
+                return;
+              }
+            }
+            else
+            {
+              if (condition3)
+              {
+                base.x();
+                return;
+              }
+              else if (condition4)
+              {
+                //base Call Missing
+              }
+              else if (condition1)
+              {
+                base.x();
+                return;
+              }
+            }
+          }
+        }
+        """;
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(23, 3)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task IfsAndReturns2_ReportsMissingDiagnostic ()
+  {
+    const string text =
+        """
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass
+        {
+          [BaseCallCheck(BaseCall.IsMandatory)]
+          public virtual void x()
+          {
+            int a = 5;
+          }
+        }
+                
+        public class DerivedClass : BaseClass
+        {
+          private bool condition1 = true;
+          private bool condition2 = false;
+          private bool condition3 = true;
+          private bool condition4 = false;
+                
+          public override void x ()
+          {
+            if (condition1)
+            {
+              if (condition2)
+              {
+                base.x();
+                return;
+              }
+              else
+              {
+                base.x(); 
+                return;
+              }
+            }
+            else
+            {
+              if (condition3)
+              {
+                //base.x; //base call missing
+                return;
+              }
+              else if (condition4)
+              {
+              }
+              else if (condition1)
+              {
+                base.x();
+                return;
+              }
+              base.x();
+            }
+          }
+        }
+        """;
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(23, 3)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task NestedIfElseWithoutBaseCall_ReportsMissingDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            private bool condition1 = true;
+            private bool condition2 = false;
+            
+            public override void Test()
+            {
+                if (condition1)
+                {
+                    if (condition2)
+                    {
+                        // Missing base call
+                    }
+                    else
+                    {
+                        base.Test();
+                    }
+                }
+                else
+                {
+                    base.Test();
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(15, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task MultipleBaseCallsInSameBranch_ReportsMultipleDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            private bool condition = true;
+            
+            public override void Test()
+            {
+                if (condition)
+                {
+                    base.Test();
+                    base.Test(); // Duplicate base call
+                }
+                else
+                {
+                    base.Test();
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
+        .WithLocation(14, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task BaseCallInLoop_ReportsLoopDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    base.Test(); // Base call in loop
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInLoop)
+        .WithLocation(12, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task ComplexNestedStructure_ReportsNothing ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            private bool condition1 = true;
+            private bool condition2 = false;
+            private bool condition3 = true;
+            
+            public override void Test()
+            {
+                if (condition1)
+                {
+                    if (condition2)
+                    {
+                        base.Test();
+                    }
+                    else if (condition3)
+                    {
+                        if (condition1 && condition2)
+                        {
+                            base.Test();
+                        }
+                        else
+                        {
+                            base.Test();
+                        }
+                    }
+                    else
+                    {
+                        base.Test();
+                    }
+                }
+                else
+                {
+                    base.Test();
+                }
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task NestedLoopsWithConditionalBaseCall_ReportsDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            private bool condition = true;
+            
+            public override void Test()
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    for (int j = 0; j < 3; j++)
+                    {
+                        if (i == 2 && j == 1)
+                        {
+                            base.Test();
+                            return;
+                        }
+                    }
+                }
+                
+                if (!condition)
+                {
+                    base.Test();
+                }
+                else
+                {
+                    base.Test();
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInLoop)
+        .WithLocation(14, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task RecursiveMethodWithBaseCall_ReportsDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test(int depth) { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test(int depth)
+            {
+                if (depth > 0)
+                {
+                    Test(depth - 1);
+                }
+                else
+                {
+                    // Base call missing
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(12, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+
+  [Fact]
+  public async Task ComplexLambdaExpressionWithBaseCall_ReportsDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using System;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            private bool condition = true;
+            
+            public override void Test()
+            {
+                Action action = () =>
+                {
+                    if (condition)
+                    {
+                        base.Test();
+                    }
+                    else
+                    {
+                        // Base call missing
+                    }
+                };
+                
+                action();
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(15, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }
