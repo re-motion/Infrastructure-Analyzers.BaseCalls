@@ -140,9 +140,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (!node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return false;
 
-    if (!((PredefinedTypeSyntax)node.ReturnType).Keyword.IsKind(SyntaxKind.VoidKeyword))
-      return false; //temporary, checker is not yet implemented for non-void methods //TODO: implement for non-void methods
-
     //check for IgnoreBaseCallCheck attribute
     if (HasIgnoreBaseCallCheckAttribute(context)) return false;
 
@@ -225,17 +222,16 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               Expression: BaseExpression
       */
 
-      if (childNode is not InvocationExpressionSyntax syntax)
+      if (childNode is MemberAccessExpressionSyntax thisIsForSimpleLambdas)
       {
-        var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
-        invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
-      }
-      else
-      {
-        invocationExpressionNode = syntax;
+        _ = thisIsForSimpleLambdas.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
+        return true;
       }
 
+      var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
+      invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
       simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
+
       _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
     }
     catch (InvalidOperationException)
@@ -392,16 +388,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         else if (IsReturn(childNode))
         {
+          if (ContainsBaseCall(context, childNode))
+          {
+            min++;
+            max++;
+          }
           diagnostic = GetBaseCallType(min, max);
           min = -1;
           max = -1;
           break;
-        }
-
-        else if (IsBaseCall(context, childNode))
-        {
-          min++;
-          max++;
         }
 
         else if (IsTry(childNode))
@@ -423,6 +418,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         else if (IsLoop(childNode) && ContainsBaseCall(context, childNode))
           diagnostic = BaseCallType.InLoop;
+
+        else if (ContainsBaseCall(context, childNode))
+        {
+          min++;
+          max++;
+        }
       }
 
       if (diagnostic != BaseCallType.Normal) //found a diagnostic
@@ -498,7 +499,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   }
 
   private static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
+  // private static readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsIf = node => node is IfStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsElse = node => node is ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsReturn = node => node is ReturnStatementSyntax;
