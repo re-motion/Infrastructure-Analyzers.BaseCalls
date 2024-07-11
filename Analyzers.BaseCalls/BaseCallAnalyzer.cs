@@ -120,8 +120,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var node = (context.Node as MethodDeclarationSyntax)!;
 
-    // pre checks
-    if (node.Body == null || !ContainsBaseCall(context, node))
+    // pre check
+    if (node.Body == null)
       ReportBaseCallDiagnostic(context, BaseCallType.None);
 
     var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0);
