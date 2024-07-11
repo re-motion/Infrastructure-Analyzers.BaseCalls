@@ -19,7 +19,8 @@ public enum BaseCallType
   Normal,
   None,
   InLoop,
-  Multiple
+  Multiple,
+  InTryCatch
 }
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -84,9 +85,26 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       true,
       DescriptionWrongBaseCall);
 
+  private const string DiagnosticIdInTryOrCatch = "RMBCA0007";
+  private static readonly LocalizableString TitleInTryOrCatch = "BaseCall in Try or Catch block";
+  private static readonly LocalizableString MessageInTryOrCatch = "BaseCall is not allowed in Try or Catch block";
+  private static readonly LocalizableString DescriptionInTryOrCatch = "BaseCall is not allowed in Try or Catch block.";
+
+  public static readonly DiagnosticDescriptor DiagnosticDescriptionInTryOrCatch = new(
+      DiagnosticIdInTryOrCatch,
+      TitleInTryOrCatch,
+      MessageInTryOrCatch,
+      Category,
+      DiagnosticSeverity.Warning,
+      true,
+      DescriptionInTryOrCatch);
+
   //list of Rules
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-    [DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls, DiagnosticDescriptionWrongBaseCall];
+  [
+      DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls, DiagnosticDescriptionWrongBaseCall,
+      DiagnosticDescriptionInTryOrCatch
+  ];
 
   public override void Initialize (AnalysisContext context)
   {
@@ -102,69 +120,18 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var node = (context.Node as MethodDeclarationSyntax)!;
 
-    if (node.Body == null) ReportBaseCallDiagnostic(context, BaseCallType.None);
+    // pre checks
+    if (node.Body == null || !ContainsBaseCall(context, node))
+      ReportBaseCallDiagnostic(context, BaseCallType.None);
 
     var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0);
-
     ReportBaseCallDiagnostic(context, diagnostic);
   }
 
-  //for anonymous method and Local function analyzers
-  public static bool SimpleContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  //used to check if a base call is in a place where its not allowed (e.g. loops)
+  public static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    if (node is ExpressionSyntax expression)
-      return IsBaseCall(context, expression);
-
-    foreach (var childNode in node.DescendantNodes())
-    {
-      if (IsBaseCall(context, childNode))
-        return true;
-      if (BaseCallInAnIfRecursive(context, childNode))
-        return true;
-      if (BaseCallInLoopRecursive(context, childNode))
-        return true;
-    }
-
-    return false;
-  }
-
-  //trimmed down version of BaseCallCheckerRecursive
-  private static bool BaseCallInAnIfRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
-  {
-    if (IsBaseCall(context, node)) return true;
-    if (!IsBranch(node)) return false;
-
-    var ifStatementSyntax = node as IfStatementSyntax;
-    ElseClauseSyntax? elseClauseSyntax = null;
-
-    do //loop over every if / elseIf / else clause
-    {
-      var statement = ifStatementSyntax?.Statement ?? elseClauseSyntax?.Statement;
-      var childNodes = statement is BlockSyntax blockSyntax
-          ? blockSyntax.ChildNodes()
-          : new[] { statement }!;
-
-      foreach (var childNode in childNodes)
-      {
-        //nested if -> recursion
-        if (IsIf(childNode) || IsElse(childNode))
-        {
-          if (BaseCallInAnIfRecursive(context, childNode))
-            return true;
-        }
-        else if (IsLoop(childNode) && BaseCallInLoopRecursive(context, childNode))
-          ReportBaseCallDiagnostic(context, BaseCallType.InLoop);
-
-        else if (IsBaseCall(context, childNode))
-          return true;
-      }
-
-      //go to next else branch
-      elseClauseSyntax = ifStatementSyntax?.Else;
-      ifStatementSyntax = elseClauseSyntax?.Statement as IfStatementSyntax;
-    } while (elseClauseSyntax != null);
-
-    return false;
+    return node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn));
   }
 
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
@@ -230,10 +197,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       foreach (var attributeDescription in attributeDescriptions)
       {
-        if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)"))
-          return BaseCall.IsOptional;
-        if (attributeDescription.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)"))
-          return BaseCall.IsMandatory;
+        switch (attributeDescription)
+        {
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)":
+            return BaseCall.IsOptional;
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)":
+            return BaseCall.IsMandatory;
+        }
       }
 
       return BaseCall.Default;
@@ -260,7 +230,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
         invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
       }
-      else //special case for use in BaseCallInAllIfsRecursive
+      else
       {
         invocationExpressionNode = syntax;
       }
@@ -314,20 +284,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private static bool BaseCallInLoopRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node)
-  {
-    if (IsBaseCall(context, node)) return true;
-    if (IsBranch(node)) return BaseCallInAnIfRecursive(context, node);
-    if (!IsLoop(node)) return false;
-
-    var loopStatement = (node as ForStatementSyntax)?.Statement ??
-                        (node as WhileStatementSyntax)?.Statement ??
-                        (node as ForEachStatementSyntax)?.Statement ??
-                        (node as DoStatementSyntax)?.Statement;
-
-    return loopStatement!.ChildNodes().Any(childNode => BaseCallInLoopRecursive(context, childNode));
-  }
-
   private static (int min, int max, BaseCallType diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int minArg, int maxArg)
   {
     //min... minimal number of basecalls
@@ -363,6 +319,52 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       //loop over childNodes
+      if (LoopOverChildNodes(childNodes, min, max, diagnostic, out var baseCallCheckerRecursive))
+        return baseCallCheckerRecursive;
+
+      //go to next else branch
+      elseClauseSyntax = ifStatementSyntax?.Else;
+      ifStatementSyntax = elseClauseSyntax?.Statement as IfStatementSyntax;
+    } while (elseClauseSyntax != null);
+
+    //find the overall min and max
+    listOfResults.RemoveAll(item => item == (-1, -1));
+
+    if (listOfResults.Count == 0)
+      return (-1, -1, BaseCallType.Normal);
+
+    minArg = listOfResults[0].min;
+    maxArg = listOfResults[0].max;
+    foreach (var (minInstance, maxInstance) in listOfResults)
+    {
+      minArg = Math.Min(minArg, minInstance);
+      maxArg = Math.Max(maxArg, maxInstance);
+    }
+
+    return (minArg, maxArg, GetBaseCallType(minArg, maxArg));
+
+
+    BaseCallType GetBaseCallType (int min, int max)
+    {
+      if (max >= 2) return BaseCallType.Multiple;
+      if (min == 0) return BaseCallType.None;
+      return BaseCallType.Normal;
+    }
+
+
+    bool LoopOverChildNodes ( //return true if a diagnostic was found
+        IEnumerable<SyntaxNode>? childNodes,
+        int min,
+        int max,
+        BaseCallType diagnostic,
+        out (int min, int max, BaseCallType diagnostic) baseCallCheckerRecursive)
+    {
+      if (childNodes == null)
+      {
+        baseCallCheckerRecursive = (min, max, diagnostic);
+        return diagnostic != BaseCallType.Normal;
+      }
+
       foreach (var childNode in childNodes)
       {
         //nested if -> recursion
@@ -371,7 +373,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           var (resmin, resmax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, min, max);
 
           if (resmin == -2) //recursion found a diagnostic -> stop everything
-            return (resmin, resmax, resDiagnostic);
+          {
+            baseCallCheckerRecursive = (resmin, resmax, resDiagnostic);
+            return true;
+          }
 
           if (resmin == -1)
           {
@@ -399,42 +404,37 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           max++;
         }
 
-        else if (IsLoop(childNode) && BaseCallInLoopRecursive(context, childNode))
+        else if (IsTry(childNode))
+        {
+          //if baseCall is in try or in catch block
+          if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsBaseCall(context, n))
+              || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsBaseCall(context, n))))
+          {
+            baseCallCheckerRecursive = (-2, -2, BaseCallType.InTryCatch);
+            return true;
+          }
+
+          var newChildNodes = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
+          if (LoopOverChildNodes(newChildNodes, min, max, diagnostic, out baseCallCheckerRecursive))
+            return true;
+          min = baseCallCheckerRecursive.min;
+          max = baseCallCheckerRecursive.max;
+        }
+
+        else if (IsLoop(childNode) && ContainsBaseCall(context, childNode))
           diagnostic = BaseCallType.InLoop;
       }
 
       if (diagnostic != BaseCallType.Normal) //found a diagnostic
-        return (-2, -2, diagnostic);
+      {
+        baseCallCheckerRecursive = (-2, -2, diagnostic);
+        return true;
+      }
 
       listOfResults.Add((min, max));
-
-      //go to next else branch
-      elseClauseSyntax = ifStatementSyntax?.Else;
-      ifStatementSyntax = elseClauseSyntax?.Statement as IfStatementSyntax;
-    } while (elseClauseSyntax != null);
-
-    //find the overall min and max
-    listOfResults.RemoveAll(item => item == (-1, -1));
-
-    if (listOfResults.Count == 0)
-      return (-1, -1, BaseCallType.Normal);
-
-    minArg = listOfResults[0].min;
-    maxArg = listOfResults[0].max;
-    foreach (var (minInstance, maxInstance) in listOfResults)
-    {
-      minArg = Math.Min(minArg, minInstance);
-      maxArg = Math.Max(maxArg, maxInstance);
+      baseCallCheckerRecursive = (min, max, BaseCallType.Normal);
+      return false;
     }
-
-    return (minArg, maxArg, GetBaseCallType(minArg, maxArg));
-  }
-
-  private static BaseCallType GetBaseCallType (int min, int max)
-  {
-    if (max >= 2) return BaseCallType.Multiple;
-    if (min == 0) return BaseCallType.None;
-    return BaseCallType.Normal;
   }
 
   private static void ReportBaseCallDiagnostic (SyntaxNodeAnalysisContext context, BaseCallType type)
@@ -458,6 +458,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         BaseCallType.InLoop => DiagnosticDescriptionBaseCallFoundInLoop,
 
         BaseCallType.Multiple => DiagnosticDescriptionMultipleBaseCalls,
+
+        BaseCallType.InTryCatch => DiagnosticDescriptionInTryOrCatch,
 
         _ => throw new ArgumentOutOfRangeException(),
     };
@@ -500,4 +502,5 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly Func<SyntaxNode, bool> IsIf = node => node is IfStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsElse = node => node is ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsReturn = node => node is ReturnStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> IsTry = node => node is TryStatementSyntax;
 }

@@ -1268,8 +1268,7 @@ public class DerivedClass : BaseClass
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-
-
+  
   [Fact]
   public async Task ComplexLambdaExpressionWithBaseCall_ReportsDiagnostic ()
   {
@@ -1310,4 +1309,179 @@ public class DerivedClass : BaseClass
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+  
+  [Fact]
+public async Task BaseCallInTryBlock_ReportsTryDiagnostic()
+{
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                try
+                {
+                    base.Test(); // Base call in try block
+                }
+                catch
+                {
+                    // Empty catch
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInTryOrCatch)
+        .WithLocation(12, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+}
+
+[Fact]
+public async Task BaseCallInCatchBlock_ReportsCatchDiagnostic()
+{
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using System;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                try
+                {
+                    throw new Exception();
+                }
+                catch
+                {
+                    base.Test(); // Base call in catch block
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInTryOrCatch)
+        .WithLocation(13, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+}
+
+[Fact]
+public async Task BaseCallInFinallyBlock_ReportsNothing()
+{
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                try
+                {
+                    // Empty try
+                }
+                catch
+                {
+                    // Empty catch
+                }
+                finally
+                {
+                    base.Test(); // Base call in finally block
+                }
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+}
+
+[Fact]
+public async Task BaseCallOutsideTryCatch_ReportsNothing()
+{
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                try
+                {
+                    // Empty try
+                }
+                catch
+                {
+                    // Empty catch
+                }
+
+                base.Test(); // Base call outside try-catch
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+}
+
+[Fact]
+public async Task BaseCallInNestedTryCatch_ReportsTryDiagnostic()
+{
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                try
+                {
+                    try
+                    {
+                        base.Test(); // Base call in nested try block
+                    }
+                    catch
+                    {
+                        // Empty catch
+                    }
+                }
+                catch
+                {
+                    // Empty catch
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInTryOrCatch)
+        .WithLocation(12, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+}
 }
