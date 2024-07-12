@@ -20,7 +20,8 @@ public enum BaseCallType
   None,
   InLoop,
   Multiple,
-  InTryCatch
+  InTryCatch,
+  InNonOverridingMethod
 }
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -99,39 +100,69 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       true,
       DescriptionInTryOrCatch);
 
+  private const string DiagnosticIdInInNonOverridingMethod = "RMBCA0008";
+  private static readonly LocalizableString TitleInInNonOverridingMethod = "BaseCall in non overriding Method";
+  private static readonly LocalizableString MessageInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method";
+  private static readonly LocalizableString DescriptionInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method.";
+
+  public static readonly DiagnosticDescriptor DiagnosticDescriptionInInNonOverridingMethod = new(
+      DiagnosticIdInInNonOverridingMethod,
+      TitleInInNonOverridingMethod,
+      MessageInInNonOverridingMethod,
+      Category,
+      DiagnosticSeverity.Warning,
+      true,
+      DescriptionInInNonOverridingMethod);
+
   //list of Rules
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
   [
       DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls, DiagnosticDescriptionWrongBaseCall,
-      DiagnosticDescriptionInTryOrCatch
+      DiagnosticDescriptionInTryOrCatch, DiagnosticDescriptionInInNonOverridingMethod
   ];
 
   public override void Initialize (AnalysisContext context)
   {
     context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.MethodDeclaration);
     context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-
     context.EnableConcurrentExecution();
   }
 
   private static void AnalyzeMethod (SyntaxNodeAnalysisContext context)
   {
-    if (!BaseCallCheckShouldHappen(context)) return;
-
     var node = (context.Node as MethodDeclarationSyntax)!;
+    BaseCallType diagnostic;
 
-    // pre check
-    if (node.Body == null)
-      ReportBaseCallDiagnostic(context, BaseCallType.None);
+    var overrides = node.Modifiers.Any(SyntaxKind.OverrideKeyword);
+    if (!overrides && !HasIgnoreBaseCallCheckAttribute(context))
+    {
+      if (ContainsAnyBaseCall(context, node))
+        diagnostic = BaseCallType.InNonOverridingMethod;
+      else
+        return;
+    }
+    else
+    {
+      if (!BaseCallCheckShouldHappen(context)) return;
 
-    var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0);
+      // pre check
+      if (node.Body == null)
+        ReportBaseCallDiagnostic(context, BaseCallType.None);
+
+      (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0);
+    }
+
     ReportBaseCallDiagnostic(context, diagnostic);
   }
 
-  //used to check if a base call is in a place where its not allowed (e.g. loops)
-  public static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  public static bool ContainsAnyBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
   {
-    return node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn));
+    return node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn, false));
+  }
+
+  public static bool ContainsCorrectBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  {
+    return node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn, true));
   }
 
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
@@ -207,7 +238,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
   }
 
-  private static bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode)
+  private static bool IsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode, bool checkIfBaseCallIsRight)
   {
     InvocationExpressionSyntax invocationExpressionNode;
     MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
@@ -240,7 +271,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
 
 
-    if (context.Node is not MethodDeclarationSyntax node) return true; //for anonymous methods and local functions
+    if (context.Node is not MethodDeclarationSyntax node || !checkIfBaseCallIsRight) return true;
 
 
     //Method signature
@@ -388,11 +419,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         else if (IsReturn(childNode))
         {
-          if (ContainsBaseCall(context, childNode))
+          if (ContainsCorrectBaseCall(context, childNode))
           {
             min++;
             max++;
           }
+
           diagnostic = GetBaseCallType(min, max);
           min = -1;
           max = -1;
@@ -402,8 +434,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         else if (IsTry(childNode))
         {
           //if baseCall is in try or in catch block
-          if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsBaseCall(context, n))
-              || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsBaseCall(context, n))))
+          if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsAnyBaseCall(context, n))
+              || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsAnyBaseCall(context, n))))
           {
             baseCallCheckerRecursive = (-2, -2, BaseCallType.InTryCatch);
             return true;
@@ -416,10 +448,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           max = baseCallCheckerRecursive.max;
         }
 
-        else if (IsLoop(childNode) && ContainsBaseCall(context, childNode))
+        else if (IsLoop(childNode) && ContainsAnyBaseCall(context, childNode))
           diagnostic = BaseCallType.InLoop;
 
-        else if (ContainsBaseCall(context, childNode))
+        else if (ContainsCorrectBaseCall(context, childNode))
         {
           min++;
           max++;
@@ -462,6 +494,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         BaseCallType.InTryCatch => DiagnosticDescriptionInTryOrCatch,
 
+        BaseCallType.InNonOverridingMethod => DiagnosticDescriptionInInNonOverridingMethod,
+
         _ => throw new ArgumentOutOfRangeException(),
     };
     context.ReportDiagnostic(Diagnostic.Create(diagnostic, squiggliesLocation));
@@ -469,17 +503,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
-    SyntaxList<AttributeListSyntax> attributeLists;
-
-    if (context.Node is MethodDeclarationSyntax methodDeclaration)
-      attributeLists = methodDeclaration.AttributeLists;
-
-    else if (context.Node is LocalFunctionStatementSyntax localFunction)
-      attributeLists = localFunction.AttributeLists;
-
-    else
-      throw new Exception("Expected a method declaration or function declaration");
-
+    var attributeLists = context.Node switch
+    {
+        MethodDeclarationSyntax methodDeclaration => methodDeclaration.AttributeLists,
+        LocalFunctionStatementSyntax localFunction => localFunction.AttributeLists,
+        _ => throw new Exception("Expected a method declaration or function declaration")
+    };
 
     foreach (var attributeListSyntax in attributeLists)
     {
@@ -499,7 +528,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   }
 
   private static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
-  // private static readonly Func<SyntaxNode, bool> IsBranch = node => node is IfStatementSyntax or ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsIf = node => node is IfStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsElse = node => node is ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsReturn = node => node is ReturnStatementSyntax;

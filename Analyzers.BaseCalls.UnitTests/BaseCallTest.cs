@@ -41,6 +41,38 @@ public class BaseCallTest
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+  
+  [Fact]
+  public async Task BaseCall_In_Non_Overriding_Method_ReportsDiagnostic ()
+  {
+    const string text =
+        """
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        public abstract class BaseClass
+        {
+            //[BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test ()
+            {
+                int a = 5;
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public void Test2 ()
+            {
+                int b = 7;
+                base.Test();
+            }
+        }
+        """;
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+        .WithLocation(14, 5)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 
   [Fact]
   public async Task NoBaseCall_WithBaseCallMandatory_ReportsDiagnostic ()
@@ -1391,7 +1423,7 @@ public class DerivedClass : BaseClass
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
   public async Task NoBaseCall_with_empty_TryCatch_ReportsDiagnostic ()
   {
@@ -1567,10 +1599,10 @@ public class DerivedClass : BaseClass
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
-public async Task BaseCallInReturn_ReportsNothing()
-{
+  public async Task BaseCallInReturn_ReportsNothing ()
+  {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
         
@@ -1590,12 +1622,11 @@ public async Task BaseCallInReturn_ReportsNothing()
 
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-}
+  }
 
-
-[Fact]
-public async Task BaseCallInReturn2_ReportsNothing()
-{
+  [Fact]
+  public async Task BaseCallInReturn2_ReportsNothing ()
+  {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
         using System;
@@ -1616,12 +1647,12 @@ public async Task BaseCallInReturn2_ReportsNothing()
 
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-}
+  }
 
-[Fact]
-public async Task Multiple_BaseCallsInReturn_ReportsDiagnostic()
-{
-  const string text = @"
+  [Fact]
+  public async Task Multiple_BaseCallsInReturn_ReportsDiagnostic ()
+  {
+    const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
         
         public abstract class BaseClass
@@ -1639,11 +1670,9 @@ public async Task Multiple_BaseCallsInReturn_ReportsDiagnostic()
             }
         }";
 
-  var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
-      .WithLocation(12, 13)
-      .WithArguments("Test");
-  await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-}
-
-
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
+        .WithLocation(12, 13)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 }

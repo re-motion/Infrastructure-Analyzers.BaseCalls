@@ -57,7 +57,7 @@ public class BaseCallLocalFunctionAnalyzer : DiagnosticAnalyzer
     SyntaxNode body = localFunction.Body!;
 
 
-    if (BaseCallAnalyzer.ContainsBaseCall(context, body))
+    if (BaseCallAnalyzer.ContainsAnyBaseCall(context, body))
     {
       ReportBaseCallInLocalFunctionDiagnostic(context);
     }
