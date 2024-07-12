@@ -41,7 +41,7 @@ public class BaseCallTest
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
   public async Task BaseCall_In_Non_Overriding_Method_ReportsDiagnostic ()
   {
@@ -1049,6 +1049,56 @@ public class DerivedClass : BaseClass
   }
 
   [Fact]
+  public async Task IfsAndReturns3_ReportsMissingNothing ()
+  {
+    const string text = @"
+        using System;
+using System.Runtime.InteropServices.ComTypes;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+                
+namespace ConsoleApp1;
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  protected virtual int x ()
+  {
+    return 5;
+  }
+}
+                
+public class DerivedClass : BaseClass
+{
+  private const bool condition1 = false;
+  private const bool condition2 = true;
+  private const bool condition3 = false;
+
+  protected override int x ()
+  {
+    Random random = new();
+    
+    if (random.Next() > 0.5)
+    {
+      base.x();
+      return 2;
+    }
+    else if (random.Next() > 0.4)
+    {
+      base.x();
+      return 0;
+    }
+    base.x();
+    
+
+    return 5;
+  }
+}";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
   public async Task NestedIfElseWithoutBaseCall_ReportsMissingDiagnostic ()
   {
     const string text = @"
@@ -1675,6 +1725,7 @@ public class DerivedClass : BaseClass
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+
   [Fact]
   public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing ()
   {
@@ -1703,6 +1754,57 @@ public class DerivedClass : BaseClass
         }";
 
     var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task IfBranch_WithNoElse_ReportsDiagnostic ()
+  {
+    const string text = @"
+        using System;
+using System.Runtime.InteropServices.ComTypes;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+
+namespace ConsoleApp1;
+
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  protected virtual int x ()
+  {
+    return 5;
+  }
+}
+
+public class DerivedClass : BaseClass
+{
+  private const bool condition1 = false;
+  private const bool condition2 = true;
+  private const bool condition3 = false;
+
+  protected override int x ()
+  {
+    Random random = new();
+
+    if (random.Next() > 0)
+    {
+      base.x();
+    }
+    else if (random.Next() > 0)
+    {
+      base.x();
+    }
+
+    //base.x();
+
+    return 5;
+  }
+}";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(24, 3)
+        .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }

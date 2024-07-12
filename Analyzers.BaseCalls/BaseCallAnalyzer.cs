@@ -178,9 +178,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
     var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
 
-      if (overriddenMethodAsNode != null && overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
-        return false;
-      
+    if (overriddenMethodAsNode != null && overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
+      return false;
+
     //check base method for attribute if it does not have one, next base method will be checked
     while (overriddenMethodAsNode != null)
     {
@@ -320,6 +320,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var listOfResults = new List<(int min, int max)>();
     var ifStatementSyntax = node as IfStatementSyntax;
+    var hasElseWithNoIf = ifStatementSyntax == null;
     ElseClauseSyntax? elseClauseSyntax = null;
 
 
@@ -351,16 +352,23 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       //go to next else branch
       elseClauseSyntax = ifStatementSyntax?.Else;
       ifStatementSyntax = elseClauseSyntax?.Statement as IfStatementSyntax;
+
+      if (elseClauseSyntax != null && ifStatementSyntax == null)
+        hasElseWithNoIf = true;
     } while (elseClauseSyntax != null);
 
     //find the overall min and max
     listOfResults.RemoveAll(item => item == (-1, -1));
 
     if (listOfResults.Count == 0)
-      return (-1, -1, BaseCallType.Normal);
+      return hasElseWithNoIf ? (-1, -1, BaseCallType.Normal) : (0, 0, BaseCallType.Normal);
 
     minArg = listOfResults[0].min;
     maxArg = listOfResults[0].max;
+
+    //when the if does not have an else with no if in it, it is not guaranteed that it will go through a branch
+    if (!hasElseWithNoIf) minArg = 0;
+
     foreach (var (minInstance, maxInstance) in listOfResults)
     {
       minArg = Math.Min(minArg, minInstance);
