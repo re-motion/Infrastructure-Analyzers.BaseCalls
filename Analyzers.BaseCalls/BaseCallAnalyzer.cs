@@ -178,6 +178,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
     var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
 
+      if (overriddenMethodAsNode != null && overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
+        return false;
+      
     //check base method for attribute if it does not have one, next base method will be checked
     while (overriddenMethodAsNode != null)
     {
@@ -195,10 +198,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         default:
           throw new ArgumentOutOfRangeException();
       }
-
-      if (overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
-        return false;
-
 
       //go one generation back
       overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;

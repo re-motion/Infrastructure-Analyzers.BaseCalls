@@ -1675,4 +1675,34 @@ public class DerivedClass : BaseClass
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+  [Fact]
+  public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass
+        {
+          public abstract int x ();
+        }
+                
+        public class DerivedClass : BaseClass
+        {
+
+          public override int x ()
+          {
+
+            //base.x();
+            return 5;
+          }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 }
