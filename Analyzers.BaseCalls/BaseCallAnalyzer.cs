@@ -28,91 +28,91 @@ public enum BaseCallType
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   //rules
-  private const string DiagnosticId = "RMBCA0001";
-  private const string Category = "Usage";
-  private static readonly LocalizableString Title = "Base Call missing";
-  private static readonly LocalizableString MessageFormat = "Base Call missing";
-  private static readonly LocalizableString Description = "Base Call is missing.";
+  private const string c_diagnosticId = "RMBCA0001";
+  private const string c_category = "Usage";
+  private static readonly LocalizableString s_title = "Base Call missing";
+  private static readonly LocalizableString s_messageFormat = "Base Call missing";
+  private static readonly LocalizableString s_description = "Base Call is missing.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionNoBaseCallFound = new(
-      DiagnosticId,
-      Title,
-      MessageFormat,
-      Category,
+      c_diagnosticId,
+      s_title,
+      s_messageFormat,
+      c_category,
       DiagnosticSeverity.Warning,
       true,
-      Description);
+      s_description);
 
 
-  private const string DiagnosticIdLoopMessage = "RMBCA0002";
-  private static readonly LocalizableString TitleLoopMessage = "Base Call found in a loop";
-  private static readonly LocalizableString MessageFormatLoopMessage = "Base Call found in a loop";
-  private static readonly LocalizableString DescriptionLoopMessage = "Base Call found in a loop, not allowed here.";
+  private const string c_diagnosticIdLoopMessage = "RMBCA0002";
+  private static readonly LocalizableString s_titleLoopMessage = "Base Call found in a loop";
+  private static readonly LocalizableString s_messageFormatLoopMessage = "Base Call found in a loop";
+  private static readonly LocalizableString s_descriptionLoopMessage = "Base Call found in a loop, not allowed here.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInLoop = new(
-      DiagnosticIdLoopMessage,
-      TitleLoopMessage,
-      MessageFormatLoopMessage,
-      Category,
+      c_diagnosticIdLoopMessage,
+      s_titleLoopMessage,
+      s_messageFormatLoopMessage,
+      c_category,
       DiagnosticSeverity.Warning,
       true,
-      DescriptionLoopMessage);
+      s_descriptionLoopMessage);
 
-  private const string DiagnosticIdMultipleBaseCalls = "RMBCA0005";
-  private static readonly LocalizableString TitleMultipleBaseCalls = "multiple BaseCalls found";
-  private static readonly LocalizableString MessageMultipleBaseCalls = "multiple BaseCalls found";
-  private static readonly LocalizableString DescriptionMultipleBaseCalls = "multiple BaseCalls found in this method, there should only be one BaseCall.";
+  private const string c_diagnosticIdMultipleBaseCalls = "RMBCA0005";
+  private static readonly LocalizableString s_titleMultipleBaseCalls = "multiple BaseCalls found";
+  private static readonly LocalizableString s_messageMultipleBaseCalls = "multiple BaseCalls found";
+  private static readonly LocalizableString s_descriptionMultipleBaseCalls = "multiple BaseCalls found in this method, there should only be one BaseCall.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionMultipleBaseCalls = new(
-      DiagnosticIdMultipleBaseCalls,
-      TitleMultipleBaseCalls,
-      MessageMultipleBaseCalls,
-      Category,
+      c_diagnosticIdMultipleBaseCalls,
+      s_titleMultipleBaseCalls,
+      s_messageMultipleBaseCalls,
+      c_category,
       DiagnosticSeverity.Warning,
       true,
-      DescriptionMultipleBaseCalls);
+      s_descriptionMultipleBaseCalls);
 
-  private const string DiagnosticIdWrongBaseCall = "RMBCA0006";
-  private static readonly LocalizableString TitleWrongBaseCall = "incorrect BaseCall";
-  private static readonly LocalizableString MessageWrongBaseCall = "BaseCall does not call the overridden Method";
-  private static readonly LocalizableString DescriptionWrongBaseCall = "BaseCall does not call the overridden Method.";
+  private const string c_diagnosticIdWrongBaseCall = "RMBCA0006";
+  private static readonly LocalizableString s_titleWrongBaseCall = "incorrect BaseCall";
+  private static readonly LocalizableString s_messageWrongBaseCall = "BaseCall does not call the overridden Method";
+  private static readonly LocalizableString s_descriptionWrongBaseCall = "BaseCall does not call the overridden Method.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionWrongBaseCall = new(
-      DiagnosticIdWrongBaseCall,
-      TitleWrongBaseCall,
-      MessageWrongBaseCall,
-      Category,
+      c_diagnosticIdWrongBaseCall,
+      s_titleWrongBaseCall,
+      s_messageWrongBaseCall,
+      c_category,
       DiagnosticSeverity.Warning,
       true,
-      DescriptionWrongBaseCall);
+      s_descriptionWrongBaseCall);
 
-  private const string DiagnosticIdInTryOrCatch = "RMBCA0007";
-  private static readonly LocalizableString TitleInTryOrCatch = "BaseCall in Try or Catch block";
-  private static readonly LocalizableString MessageInTryOrCatch = "BaseCall is not allowed in Try or Catch block";
-  private static readonly LocalizableString DescriptionInTryOrCatch = "BaseCall is not allowed in Try or Catch block.";
+  private const string c_diagnosticIdInTryOrCatch = "RMBCA0007";
+  private static readonly LocalizableString s_titleInTryOrCatch = "BaseCall in Try or Catch block";
+  private static readonly LocalizableString s_messageInTryOrCatch = "BaseCall is not allowed in Try or Catch block";
+  private static readonly LocalizableString s_descriptionInTryOrCatch = "BaseCall is not allowed in Try or Catch block.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionInTryOrCatch = new(
-      DiagnosticIdInTryOrCatch,
-      TitleInTryOrCatch,
-      MessageInTryOrCatch,
-      Category,
+      c_diagnosticIdInTryOrCatch,
+      s_titleInTryOrCatch,
+      s_messageInTryOrCatch,
+      c_category,
       DiagnosticSeverity.Warning,
       true,
-      DescriptionInTryOrCatch);
+      s_descriptionInTryOrCatch);
 
-  private const string DiagnosticIdInInNonOverridingMethod = "RMBCA0008";
-  private static readonly LocalizableString TitleInInNonOverridingMethod = "BaseCall in non overriding Method";
-  private static readonly LocalizableString MessageInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method";
-  private static readonly LocalizableString DescriptionInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method.";
+  private const string c_diagnosticIdInInNonOverridingMethod = "RMBCA0008";
+  private static readonly LocalizableString s_titleInInNonOverridingMethod = "BaseCall in non overriding Method";
+  private static readonly LocalizableString s_messageInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method";
+  private static readonly LocalizableString s_descriptionInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method.";
 
   public static readonly DiagnosticDescriptor DiagnosticDescriptionInInNonOverridingMethod = new(
-      DiagnosticIdInInNonOverridingMethod,
-      TitleInInNonOverridingMethod,
-      MessageInInNonOverridingMethod,
-      Category,
+      c_diagnosticIdInInNonOverridingMethod,
+      s_titleInInNonOverridingMethod,
+      s_messageInInNonOverridingMethod,
+      c_category,
       DiagnosticSeverity.Warning,
       true,
-      DescriptionInInNonOverridingMethod);
+      s_descriptionInInNonOverridingMethod);
 
   //list of Rules
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
