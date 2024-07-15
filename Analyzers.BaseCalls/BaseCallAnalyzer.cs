@@ -513,10 +513,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     //location of the squigglies (whole line of the method declaration)
     var squiggliesLocation = Location.Create(
         node.SyntaxTree,
-        TextSpan.FromBounds(
-            node.GetLeadingTrivia().Span.End,
-            node.ParameterList.Span.End
-        )
+        node.Identifier.Span
     );
     var diagnostic = type switch
     {
