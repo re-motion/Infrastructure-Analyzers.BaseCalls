@@ -131,38 +131,40 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static void AnalyzeMethod (SyntaxNodeAnalysisContext context)
   {
     var node = (context.Node as MethodDeclarationSyntax)!;
-    BaseCallType diagnostic;
 
+    //check for non-overriding methods
     var overrides = node.Modifiers.Any(SyntaxKind.OverrideKeyword);
     if (!overrides && !HasIgnoreBaseCallCheckAttribute(context))
     {
       if (ContainsAnyBaseCall(context, node))
-        diagnostic = BaseCallType.InNonOverridingMethod;
-      else
-        return;
+        ReportBaseCallDiagnostic(context, BaseCallType.InNonOverridingMethod);
+      return;
     }
-    else
+
+
+    if (!BaseCallCheckShouldHappen(context)) return;
+
+    // method is empty
+    if (node.Body == null && node.ExpressionBody == null)
     {
-      if (!BaseCallCheckShouldHappen(context)) return;
-
-      // pre check
-      if (node.Body == null)
-        ReportBaseCallDiagnostic(context, BaseCallType.None);
-
-      (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0);
+      ReportBaseCallDiagnostic(context, BaseCallType.None);
+      return;
     }
+
+    // normal, overriding methods
+    var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0);
 
     ReportBaseCallDiagnostic(context, diagnostic);
   }
 
-  public static bool ContainsAnyBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  public static bool ContainsAnyBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode? node)
   {
-    return node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn, false));
+    return node != null && node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn, false));
   }
 
-  public static bool ContainsCorrectBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node)
+  private static bool ContainsCorrectBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode? node)
   {
-    return node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn, true));
+    return node != null && node.DescendantNodesAndSelf().Any(cn => IsBaseCall(context, cn, true));
   }
 
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
@@ -310,7 +312,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private static (int min, int max, BaseCallType diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int minArg, int maxArg)
+  private static (int min, int max, BaseCallType diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int min, int max)
   {
     //min... minimal number of basecalls
     //max... maximal number of basecalls
@@ -326,28 +328,33 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     do //loop over every if / elseIf / else clause
     {
-      var min = minArg;
-      var max = maxArg;
-      BaseCallType diagnostic = BaseCallType.Normal;
-
       //get childNodes
       var statement = ifStatementSyntax?.Statement ?? elseClauseSyntax?.Statement;
       IEnumerable<SyntaxNode> childNodes;
-      if (statement == null) //not an if or else -> get childnodes of Method Declaration
-      {
-        var methodDeclaration = (MethodDeclarationSyntax)node;
-        childNodes = methodDeclaration.Body!.ChildNodes();
-      }
-      else
+      if (statement != null)
       {
         childNodes = statement is BlockSyntax blockSyntax
             ? blockSyntax.ChildNodes() //blocks with {}
             : new[] { statement }; //blocks without{}
       }
+      else //not an if or else -> get childNodes of Method Declaration
+      {
+        var methodDeclaration = (MethodDeclarationSyntax)node;
+        if (methodDeclaration.Body != null)
+          childNodes = methodDeclaration.Body.ChildNodes();
+
+        else if (methodDeclaration.ExpressionBody != null)
+          childNodes = methodDeclaration.ExpressionBody.ChildNodes();
+
+        else
+          throw new Exception("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause");
+      }
+
 
       //loop over childNodes
-      if (LoopOverChildNodes(childNodes, min, max, diagnostic, out var baseCallCheckerRecursive))
+      if (LoopOverChildNodes(childNodes, min, max, BaseCallType.Normal, out var baseCallCheckerRecursive))
         return baseCallCheckerRecursive;
+
 
       //go to next else branch
       elseClauseSyntax = ifStatementSyntax?.Else;
@@ -357,45 +364,46 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         hasElseWithNoIf = true;
     } while (elseClauseSyntax != null);
 
+
     //find the overall min and max
     listOfResults.RemoveAll(item => item == (-1, -1));
 
     if (listOfResults.Count == 0)
       return hasElseWithNoIf ? (-1, -1, BaseCallType.Normal) : (0, 0, BaseCallType.Normal);
 
-    minArg = listOfResults[0].min;
-    maxArg = listOfResults[0].max;
+    min = listOfResults[0].min;
+    max = listOfResults[0].max;
 
     //when the if does not have an else with no if in it, it is not guaranteed that it will go through a branch
-    if (!hasElseWithNoIf) minArg = 0;
+    if (!hasElseWithNoIf) min = 0;
 
     foreach (var (minInstance, maxInstance) in listOfResults)
     {
-      minArg = Math.Min(minArg, minInstance);
-      maxArg = Math.Max(maxArg, maxInstance);
+      min = Math.Min(min, minInstance);
+      max = Math.Max(max, maxInstance);
     }
 
-    return (minArg, maxArg, GetBaseCallType(minArg, maxArg));
+    return (min, max, GetBaseCallType(min, max));
 
 
-    BaseCallType GetBaseCallType (int min, int max)
+    BaseCallType GetBaseCallType (int minLocal, int maxLocal)
     {
-      if (max >= 2) return BaseCallType.Multiple;
-      if (min == 0) return BaseCallType.None;
+      if (maxLocal >= 2) return BaseCallType.Multiple;
+      if (minLocal == 0) return BaseCallType.None;
       return BaseCallType.Normal;
     }
 
 
     bool LoopOverChildNodes ( //return true if a diagnostic was found
         IEnumerable<SyntaxNode>? childNodes,
-        int min,
-        int max,
+        int minLocal,
+        int maxLocal,
         BaseCallType diagnostic,
         out (int min, int max, BaseCallType diagnostic) baseCallCheckerRecursive)
     {
       if (childNodes == null)
       {
-        baseCallCheckerRecursive = (min, max, diagnostic);
+        baseCallCheckerRecursive = (minLocal, maxLocal, diagnostic);
         return diagnostic != BaseCallType.Normal;
       }
 
@@ -404,7 +412,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         //nested if -> recursion
         if (IsIf(childNode) || IsElse(childNode))
         {
-          var (resmin, resmax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, min, max);
+          var (resmin, resmax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, minLocal, maxLocal);
 
           if (resmin == -2) //recursion found a diagnostic -> stop everything
           {
@@ -415,26 +423,26 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (resmin == -1)
           {
             diagnostic = resDiagnostic;
-            min = resmin;
-            max = resmax;
+            minLocal = resmin;
+            maxLocal = resmax;
             break;
           }
 
-          min = Math.Max(min, resmin);
-          max = Math.Max(max, resmax);
+          minLocal = Math.Max(minLocal, resmin);
+          maxLocal = Math.Max(maxLocal, resmax);
         }
 
         else if (IsReturn(childNode))
         {
           if (ContainsCorrectBaseCall(context, childNode))
           {
-            min++;
-            max++;
+            minLocal++;
+            maxLocal++;
           }
 
-          diagnostic = GetBaseCallType(min, max);
-          min = -1;
-          max = -1;
+          diagnostic = GetBaseCallType(minLocal, maxLocal);
+          minLocal = -1;
+          maxLocal = -1;
           break;
         }
 
@@ -449,19 +457,38 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           }
 
           var newChildNodes = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
-          if (LoopOverChildNodes(newChildNodes, min, max, diagnostic, out baseCallCheckerRecursive))
+          if (LoopOverChildNodes(newChildNodes, minLocal, maxLocal, diagnostic, out baseCallCheckerRecursive))
             return true;
-          min = baseCallCheckerRecursive.min;
-          max = baseCallCheckerRecursive.max;
+          minLocal = baseCallCheckerRecursive.min;
+          maxLocal = baseCallCheckerRecursive.max;
         }
 
         else if (IsLoop(childNode) && ContainsAnyBaseCall(context, childNode))
           diagnostic = BaseCallType.InLoop;
 
+        else if (IsNormalSwitch(childNode) && ContainsCorrectBaseCall(context, childNode))
+        {
+          var allContainBaseCall = ((SwitchStatementSyntax)childNode).ChildNodes()
+              .OfType<SwitchSectionSyntax>()
+              .All(switchSectionSyntax => ContainsCorrectBaseCall(context, switchSectionSyntax));
+
+          if (allContainBaseCall)
+            minLocal++;
+          maxLocal++;
+        }
+        else if (IsSwitchExpression(childNode) && ContainsCorrectBaseCall(context, childNode))
+        {
+          var allContainBaseCall = ((SwitchExpressionSyntax)childNode).Arms.All(n => ContainsCorrectBaseCall(context, n));
+
+          if (allContainBaseCall)
+            minLocal++;
+          maxLocal++;
+        }
+
         else if (ContainsCorrectBaseCall(context, childNode))
         {
-          min++;
-          max++;
+          minLocal++;
+          maxLocal++;
         }
       }
 
@@ -471,8 +498,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         return true;
       }
 
-      listOfResults.Add((min, max));
-      baseCallCheckerRecursive = (min, max, BaseCallType.Normal);
+      listOfResults.Add((minLocal, maxLocal));
+      baseCallCheckerRecursive = (minLocal, maxLocal, BaseCallType.Normal);
       return false;
     }
   }
@@ -539,4 +566,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly Func<SyntaxNode, bool> IsElse = node => node is ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsReturn = node => node is ReturnStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsTry = node => node is TryStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> IsNormalSwitch = node => node is SwitchStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> IsSwitchExpression = node => node is SwitchExpressionSyntax;
 }
