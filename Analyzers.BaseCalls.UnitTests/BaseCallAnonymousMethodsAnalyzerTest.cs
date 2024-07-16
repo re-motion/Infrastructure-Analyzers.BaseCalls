@@ -3,7 +3,6 @@
 namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 public class BaseCallAnonymousMethodsTest
@@ -25,7 +24,7 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text);
   }
 
   [Fact]
@@ -45,11 +44,18 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>
-        .Diagnostic(BaseCallAnonymousMethodsAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
-        .WithLocation(8, 33);
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+                           .WithLocation(6, 25)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
+                           .WithLocation(8, 33)
+                   };
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text, expected);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
@@ -66,7 +72,7 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text);
   }
 
   [Fact]
@@ -83,11 +89,19 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>
-        .Diagnostic(BaseCallAnonymousMethodsAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
-        .WithLocation(8, 38);
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text, expected);
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+                           .WithLocation(6, 25)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
+                           .WithLocation(8, 38)
+                   };
+
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
@@ -104,7 +118,7 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text);
   }
 
   [Fact]
@@ -121,11 +135,18 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>
-        .Diagnostic(BaseCallAnonymousMethodsAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
-        .WithLocation(8, 42);
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+                           .WithLocation(6, 25)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
+                           .WithLocation(8, 42)
+                   };
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text, expected);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
@@ -147,17 +168,21 @@ public class BaseCallAnonymousMethodsTest
 
     var expected = new[]
                    {
-                       CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>
-                           .Diagnostic(BaseCallAnonymousMethodsAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+                           .WithLocation(6, 25),
+
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
                            .WithLocation(8, 38),
 
-                       CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>
-                           .Diagnostic(BaseCallAnonymousMethodsAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
-                           .WithLocation(10, 42)
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
+                           .WithLocation(10, 42),
                    };
 
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text, expected);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
@@ -180,10 +205,17 @@ public class BaseCallAnonymousMethodsTest
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>
-        .Diagnostic(BaseCallAnonymousMethodsAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
-        .WithLocation(8, 33);
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+                           .WithLocation(6, 25)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionBaseCallFoundInAnonymousMethod)
+                           .WithLocation(8, 33)
+                   };
 
-    await CSharpAnalyzerVerifier<BaseCallAnonymousMethodsAnalyzer>.VerifyAnalyzerAsync(text, expected);
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }

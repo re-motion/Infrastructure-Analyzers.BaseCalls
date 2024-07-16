@@ -20,15 +20,16 @@ public enum BaseCallType
   InLoop,
   Multiple,
   InTryCatch,
-  InNonOverridingMethod
+  InNonOverridingMethod,
 }
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   //rules
-  private const string c_diagnosticId = "RMBCA0001";
   private const string c_category = "Usage";
+
+  private const string c_diagnosticId = "RMBCA0001";
   private static readonly LocalizableString s_title = "Base Call missing";
   private static readonly LocalizableString s_messageFormat = "Base Call missing";
   private static readonly LocalizableString s_description = "Base Call is missing.";
@@ -56,6 +57,35 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       DiagnosticSeverity.Warning,
       true,
       s_descriptionLoopMessage);
+
+  private const string c_diagnosticIdAnonymousMethod = "RMBCA0003";
+  private static readonly LocalizableString s_titleAnonymousMethod = "Base Call found in anonymous method";
+  private static readonly LocalizableString s_messageFormatAnonymousMethod = "Base Call is not allowed in anonymous methods";
+  private static readonly LocalizableString s_descriptionAnonymousMethod = "Base Calls should not be used in anonymous methods.";
+
+  public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInAnonymousMethod = new(
+      c_diagnosticIdAnonymousMethod,
+      s_titleAnonymousMethod,
+      s_messageFormatAnonymousMethod,
+      c_category,
+      DiagnosticSeverity.Warning,
+      true,
+      s_descriptionAnonymousMethod);
+
+  private const string c_diagnosticIdLocalFunction = "RMBCA0004";
+  private static readonly LocalizableString s_titleLocalFunction = "Base Call found in local function";
+  private static readonly LocalizableString s_messageFormatLocalFunction = "Base Call is not allowed in local function";
+  private static readonly LocalizableString s_descriptionLocalFunction = "Base Calls should not be used in local function.";
+
+  public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInLocalFunction = new(
+      c_diagnosticIdLocalFunction,
+      s_titleLocalFunction,
+      s_messageFormatLocalFunction,
+      c_category,
+      DiagnosticSeverity.Warning,
+      true,
+      s_descriptionLocalFunction);
+
 
   private const string c_diagnosticIdMultipleBaseCalls = "RMBCA0005";
   private static readonly LocalizableString s_titleMultipleBaseCalls = "multiple BaseCalls found";
@@ -117,19 +147,39 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
   [
       DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls, DiagnosticDescriptionWrongBaseCall,
-      DiagnosticDescriptionInTryOrCatch, DiagnosticDescriptionInInNonOverridingMethod
+      DiagnosticDescriptionInTryOrCatch, DiagnosticDescriptionInInNonOverridingMethod, DiagnosticDescriptionBaseCallFoundInLocalFunction,
+      DiagnosticDescriptionBaseCallFoundInAnonymousMethod
   ];
 
   public override void Initialize (AnalysisContext context)
   {
     context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.MethodDeclaration);
+
+    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.AnonymousMethodExpression);
+    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.SimpleLambdaExpression);
+    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.ParenthesizedLambdaExpression);
+
+    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.LocalFunctionStatement);
+
+
     context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
     context.EnableConcurrentExecution();
   }
 
   private static void AnalyzeMethod (SyntaxNodeAnalysisContext context)
   {
-    var node = (context.Node as MethodDeclarationSyntax)!;
+    var generalNode = context.Node;
+    switch (generalNode)
+    {
+      case AnonymousMethodExpressionSyntax or SimpleLambdaExpressionSyntax or ParenthesizedLambdaExpressionSyntax:
+        AnalyzeAnonymousMethod();
+        return;
+      case LocalFunctionStatementSyntax:
+        AnalyzeLocalFunction();
+        return;
+    }
+
+    var node = (generalNode as MethodDeclarationSyntax)!;
 
     var isMixin = IsMixin(context);
 
@@ -146,6 +196,57 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0, isMixin);
 
     ReportBaseCallDiagnostic(context, diagnostic);
+    return;
+
+
+    void AnalyzeAnonymousMethod ()
+    {
+      var anonymousMethod = context.Node as AnonymousFunctionExpressionSyntax;
+      if (anonymousMethod == null)
+        return;
+
+      SyntaxNode body;
+
+      if (anonymousMethod is SimpleLambdaExpressionSyntax simpleLambda)
+        body = simpleLambda.Body;
+      else
+        body = anonymousMethod.Body;
+
+      if (ContainsBaseCall(context, body, false, false))
+      {
+        var squiggliesLocation = anonymousMethod.GetLocation();
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInAnonymousMethod, squiggliesLocation));
+      }
+    }
+
+    void AnalyzeLocalFunction ()
+    {
+      var localFunction = context.Node as LocalFunctionStatementSyntax;
+
+      if (HasIgnoreBaseCallCheckAttribute(context))
+        return;
+
+
+      if (localFunction == null)
+        return;
+
+      SyntaxNode body = localFunction.Body!;
+
+
+      if (ContainsBaseCall(context, body, false, false))
+      {
+        var localNode = (LocalFunctionStatementSyntax)context.Node;
+        //location of the squigglies (whole line of the method declaration)
+        var squiggliesLocation = Location.Create(
+            localNode.SyntaxTree,
+            TextSpan.FromBounds(
+                localNode.GetLeadingTrivia().Span.End,
+                localNode.ParameterList.Span.End
+            )
+        );
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLocalFunction, squiggliesLocation));
+      }
+    }
   }
 
   private static bool IsMixin (SyntaxNodeAnalysisContext context)
@@ -212,7 +313,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  public static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode? node, bool mustBeCorrect, bool isMixin)
+  private static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode? node, bool mustBeCorrect, bool isMixin)
   {
     return node != null && node.DescendantNodesAndSelf().Any(cn => IsBaseOrNextCall(context, cn, mustBeCorrect, isMixin));
   }
@@ -612,7 +713,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     context.ReportDiagnostic(Diagnostic.Create(diagnostic, squiggliesLocation));
   }
 
-  public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
+  private static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
     var attributeLists = context.Node switch
     {
