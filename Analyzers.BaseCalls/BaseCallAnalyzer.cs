@@ -20,7 +20,7 @@ public enum BaseCallType
   InLoop,
   Multiple,
   InTryCatch,
-  InNonOverridingMethod,
+  InNonOverridingMethod
 }
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -34,7 +34,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageFormat = "Base Call missing";
   private static readonly LocalizableString s_description = "Base Call is missing.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionNoBaseCallFound = new(
+  public static readonly DiagnosticDescriptor NoBaseCall = new(
       c_diagnosticId,
       s_title,
       s_messageFormat,
@@ -49,7 +49,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageFormatLoopMessage = "Base Call found in a loop";
   private static readonly LocalizableString s_descriptionLoopMessage = "Base Call found in a loop, not allowed here.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInLoop = new(
+  public static readonly DiagnosticDescriptor InLoop = new(
       c_diagnosticIdLoopMessage,
       s_titleLoopMessage,
       s_messageFormatLoopMessage,
@@ -63,7 +63,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageFormatAnonymousMethod = "Base Call is not allowed in anonymous methods";
   private static readonly LocalizableString s_descriptionAnonymousMethod = "Base Calls should not be used in anonymous methods.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInAnonymousMethod = new(
+  public static readonly DiagnosticDescriptor InAnonymousMethod = new(
       c_diagnosticIdAnonymousMethod,
       s_titleAnonymousMethod,
       s_messageFormatAnonymousMethod,
@@ -77,7 +77,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageFormatLocalFunction = "Base Call is not allowed in local function";
   private static readonly LocalizableString s_descriptionLocalFunction = "Base Calls should not be used in local function.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionBaseCallFoundInLocalFunction = new(
+  public static readonly DiagnosticDescriptor InLocalFunction = new(
       c_diagnosticIdLocalFunction,
       s_titleLocalFunction,
       s_messageFormatLocalFunction,
@@ -92,7 +92,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageMultipleBaseCalls = "multiple BaseCalls found";
   private static readonly LocalizableString s_descriptionMultipleBaseCalls = "multiple BaseCalls found in this method, there should only be one BaseCall.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionMultipleBaseCalls = new(
+  public static readonly DiagnosticDescriptor MultipleBaseCalls = new(
       c_diagnosticIdMultipleBaseCalls,
       s_titleMultipleBaseCalls,
       s_messageMultipleBaseCalls,
@@ -106,7 +106,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageWrongBaseCall = "BaseCall does not call the overridden Method";
   private static readonly LocalizableString s_descriptionWrongBaseCall = "BaseCall does not call the overridden Method.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionWrongBaseCall = new(
+  public static readonly DiagnosticDescriptor WrongBaseCall = new(
       c_diagnosticIdWrongBaseCall,
       s_titleWrongBaseCall,
       s_messageWrongBaseCall,
@@ -120,7 +120,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageInTryOrCatch = "BaseCall is not allowed in Try or Catch block";
   private static readonly LocalizableString s_descriptionInTryOrCatch = "BaseCall is not allowed in Try or Catch block.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionInTryOrCatch = new(
+  public static readonly DiagnosticDescriptor InTryOrCatch = new(
       c_diagnosticIdInTryOrCatch,
       s_titleInTryOrCatch,
       s_messageInTryOrCatch,
@@ -134,7 +134,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly LocalizableString s_messageInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method";
   private static readonly LocalizableString s_descriptionInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method.";
 
-  public static readonly DiagnosticDescriptor DiagnosticDescriptionInInNonOverridingMethod = new(
+  public static readonly DiagnosticDescriptor InNonOverridingMethod = new(
       c_diagnosticIdInInNonOverridingMethod,
       s_titleInInNonOverridingMethod,
       s_messageInInNonOverridingMethod,
@@ -146,9 +146,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   //list of Rules
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
   [
-      DiagnosticDescriptionNoBaseCallFound, DiagnosticDescriptionBaseCallFoundInLoop, DiagnosticDescriptionMultipleBaseCalls, DiagnosticDescriptionWrongBaseCall,
-      DiagnosticDescriptionInTryOrCatch, DiagnosticDescriptionInInNonOverridingMethod, DiagnosticDescriptionBaseCallFoundInLocalFunction,
-      DiagnosticDescriptionBaseCallFoundInAnonymousMethod
+      NoBaseCall, InLoop, MultipleBaseCalls, WrongBaseCall,
+      InTryOrCatch, InNonOverridingMethod, InLocalFunction,
+      InAnonymousMethod
   ];
 
   public override void Initialize (AnalysisContext context)
@@ -215,7 +215,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       if (ContainsBaseCall(context, body, false, false))
       {
         var squiggliesLocation = anonymousMethod.GetLocation();
-        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInAnonymousMethod, squiggliesLocation));
+        context.ReportDiagnostic(Diagnostic.Create(InAnonymousMethod, squiggliesLocation));
       }
     }
 
@@ -244,7 +244,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
                 localNode.ParameterList.Span.End
             )
         );
-        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionBaseCallFoundInLocalFunction, squiggliesLocation));
+        context.ReportDiagnostic(Diagnostic.Create(InLocalFunction, squiggliesLocation));
       }
     }
   }
@@ -489,7 +489,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             invocationExpressionNode.ArgumentList.Span.End
         )
     );
-    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionWrongBaseCall, squiggliesLocation));
+    context.ReportDiagnostic(Diagnostic.Create(WrongBaseCall, squiggliesLocation));
     return true;
   }
 
@@ -593,24 +593,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         //nested if -> recursion
         if (IsIf(childNode) || IsElse(childNode))
         {
-          var (resmin, resmax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, minLocal, maxLocal, isMixin);
+          var (resultMin, resultMax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, minLocal, maxLocal, isMixin);
 
-          if (resmin == -2) //recursion found a diagnostic -> stop everything
+          if (resultMin == -2) //recursion found a diagnostic -> stop everything
           {
-            baseCallCheckerRecursive = (resmin, resmax, resDiagnostic);
+            baseCallCheckerRecursive = (resultMin, resultMax, resDiagnostic);
             return true;
           }
 
-          if (resmin == -1)
+          if (resultMin == -1)
           {
             diagnostic = resDiagnostic;
-            minLocal = resmin;
-            maxLocal = resmax;
+            minLocal = resultMin;
+            maxLocal = resultMax;
             break;
           }
 
-          minLocal = Math.Max(minLocal, resmin);
-          maxLocal = Math.Max(maxLocal, resmax);
+          minLocal = Math.Max(minLocal, resultMin);
+          maxLocal = Math.Max(maxLocal, resultMax);
         }
 
         else if (IsReturn(childNode))
@@ -698,20 +698,21 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     );
     var diagnostic = type switch
     {
-        BaseCallType.None => DiagnosticDescriptionNoBaseCallFound,
+        BaseCallType.None => NoBaseCall,
 
-        BaseCallType.InLoop => DiagnosticDescriptionBaseCallFoundInLoop,
+        BaseCallType.InLoop => InLoop,
 
-        BaseCallType.Multiple => DiagnosticDescriptionMultipleBaseCalls,
+        BaseCallType.Multiple => MultipleBaseCalls,
 
-        BaseCallType.InTryCatch => DiagnosticDescriptionInTryOrCatch,
+        BaseCallType.InTryCatch => InTryOrCatch,
 
-        BaseCallType.InNonOverridingMethod => DiagnosticDescriptionInInNonOverridingMethod,
+        BaseCallType.InNonOverridingMethod => InNonOverridingMethod,
 
         _ => throw new ArgumentOutOfRangeException(),
     };
     context.ReportDiagnostic(Diagnostic.Create(diagnostic, squiggliesLocation));
   }
+
 
   private static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
