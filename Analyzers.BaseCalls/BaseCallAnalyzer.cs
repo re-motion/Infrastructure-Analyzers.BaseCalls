@@ -13,20 +13,12 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
-public enum BaseCallType
-{
-  Normal,
-  None,
-  InLoop,
-  Multiple,
-  InTryCatch,
-  InNonOverridingMethod
-}
-
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   //rules
+  private static readonly DiagnosticDescriptor? NoDiagnostic = null;
+  
   private const string c_category = "Usage";
 
   private const string c_diagnosticId = "RMBCA0001";
@@ -188,14 +180,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     // method is empty
     if (node.Body == null && node.ExpressionBody == null)
     {
-      ReportBaseCallDiagnostic(context, BaseCallType.None);
+      ReportDiagnostic(context, NoBaseCall);
       return;
     }
 
     // normal, overriding methods
     var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0, isMixin);
 
-    ReportBaseCallDiagnostic(context, diagnostic);
+    ReportDiagnostic(context, diagnostic);
     return;
 
 
@@ -329,7 +321,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     if (!DoesOverride(context))
     {
       if (ContainsBaseCall(context, node, false, false))
-        ReportBaseCallDiagnostic(context, BaseCallType.InNonOverridingMethod);
+        ReportDiagnostic(context, InNonOverridingMethod);
       return false;
     }
 
@@ -493,7 +485,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return true;
   }
 
-  private static (int min, int max, BaseCallType diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int min, int max, bool isMixin)
+  private static (int min, int max, DiagnosticDescriptor? diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int min, int max, bool isMixin)
   {
     //min... minimal number of basecalls
     //max... maximal number of basecalls
@@ -533,7 +525,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       //loop over childNodes
-      if (LoopOverChildNodes(childNodes, min, max, BaseCallType.Normal, out var baseCallCheckerRecursive))
+      if (LoopOverChildNodes(childNodes, min, max, NoDiagnostic, out var baseCallCheckerRecursive))
         return baseCallCheckerRecursive;
 
 
@@ -550,7 +542,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     listOfResults.RemoveAll(item => item == (-1, -1));
 
     if (listOfResults.Count == 0)
-      return hasElseWithNoIf ? (-1, -1, BaseCallType.Normal) : (0, 0, BaseCallType.Normal);
+      return hasElseWithNoIf ? (-1, -1, NoDiagnostic) : (0, 0, NoDiagnostic);
 
     min = listOfResults[0].min;
     max = listOfResults[0].max;
@@ -564,14 +556,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       max = Math.Max(max, maxInstance);
     }
 
-    return (min, max, GetBaseCallType(min, max));
+    return (min, max, GetDiagnosticDescription(min, max));
 
 
-    BaseCallType GetBaseCallType (int minLocal, int maxLocal)
+    DiagnosticDescriptor? GetDiagnosticDescription (int minLocal, int maxLocal)
     {
-      if (maxLocal >= 2) return BaseCallType.Multiple;
-      if (minLocal == 0) return BaseCallType.None;
-      return BaseCallType.Normal;
+      if (maxLocal >= 2) return MultipleBaseCalls;
+      if (minLocal == 0) return NoBaseCall;
+      return NoDiagnostic;
     }
 
 
@@ -579,13 +571,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         IEnumerable<SyntaxNode>? childNodes,
         int minLocal,
         int maxLocal,
-        BaseCallType diagnostic,
-        out (int min, int max, BaseCallType diagnostic) baseCallCheckerRecursive)
+        DiagnosticDescriptor? diagnostic,
+        out (int min, int max, DiagnosticDescriptor? diagnostic) baseCallCheckerRecursive)
     {
       if (childNodes == null)
       {
         baseCallCheckerRecursive = (minLocal, maxLocal, diagnostic);
-        return diagnostic != BaseCallType.Normal;
+        return diagnostic != null;
       }
 
       foreach (var childNode in childNodes)
@@ -621,7 +613,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             maxLocal++;
           }
 
-          diagnostic = GetBaseCallType(minLocal, maxLocal);
+          diagnostic = GetDiagnosticDescription(minLocal, maxLocal);
           minLocal = -1;
           maxLocal = -1;
           break;
@@ -633,7 +625,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))
               || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))))
           {
-            baseCallCheckerRecursive = (-2, -2, BaseCallType.InTryCatch);
+            baseCallCheckerRecursive = (-2, -2, InTryOrCatch);
             return true;
           }
 
@@ -645,7 +637,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         }
 
         else if (IsLoop(childNode) && ContainsBaseCall(context, childNode, false, isMixin))
-          diagnostic = BaseCallType.InLoop;
+          diagnostic = InLoop;
 
         else if (IsNormalSwitch(childNode) && ContainsBaseCall(context, childNode, true, isMixin))
         {
@@ -673,21 +665,21 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         }
       }
 
-      if (diagnostic != BaseCallType.Normal) //found a diagnostic
+      if (diagnostic != null) //found a diagnostic
       {
         baseCallCheckerRecursive = (-2, -2, diagnostic);
         return true;
       }
 
       listOfResults.Add((minLocal, maxLocal));
-      baseCallCheckerRecursive = (minLocal, maxLocal, BaseCallType.Normal);
+      baseCallCheckerRecursive = (minLocal, maxLocal, NoDiagnostic);
       return false;
     }
   }
 
-  private static void ReportBaseCallDiagnostic (SyntaxNodeAnalysisContext context, BaseCallType type)
+  private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, DiagnosticDescriptor? descriptor)
   {
-    if (type == BaseCallType.Normal)
+    if (descriptor == null)
       return;
 
     var node = (MethodDeclarationSyntax)context.Node;
@@ -696,21 +688,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         node.SyntaxTree,
         node.Identifier.Span
     );
-    var diagnostic = type switch
-    {
-        BaseCallType.None => NoBaseCall,
-
-        BaseCallType.InLoop => InLoop,
-
-        BaseCallType.Multiple => MultipleBaseCalls,
-
-        BaseCallType.InTryCatch => InTryOrCatch,
-
-        BaseCallType.InNonOverridingMethod => InNonOverridingMethod,
-
-        _ => throw new ArgumentOutOfRangeException(),
-    };
-    context.ReportDiagnostic(Diagnostic.Create(diagnostic, squiggliesLocation));
+    
+    context.ReportDiagnostic(Diagnostic.Create(descriptor, squiggliesLocation));
   }
 
 
