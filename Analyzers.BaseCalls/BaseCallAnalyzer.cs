@@ -18,7 +18,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   //rules
   private static readonly DiagnosticDescriptor? NoDiagnostic = null;
-  
+
   private const string c_category = "Usage";
 
   private const string c_diagnosticId = "RMBCA0001";
@@ -399,48 +399,40 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     var node = (context.Node as MethodDeclarationSyntax)!;
 
-    InvocationExpressionSyntax invocationExpressionNode;
-    MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
+    InvocationExpressionSyntax? invocationExpressionNode;
+    MemberAccessExpressionSyntax? simpleMemberAccessExpressionNode;
 
-    try
+
+    //trying to cast a line of code to an BaseExpressionSyntax, example Syntax tree:
+    /*
+     MethodDeclaration
+      Body: Block
+        Expression: InvocationExpression
+          Expression: SimpleMemberAccessExpression
+            Expression: BaseExpression
+    */
+    if (!isMixin)
     {
-      //trying to cast a line of code to an BaseExpressionSyntax, example Syntax tree:
-      /*
-       MethodDeclaration
-        Body: Block
-          Expression: InvocationExpression
-            Expression: SimpleMemberAccessExpression
-              Expression: BaseExpression
-      */
-      if (!isMixin)
-      {
-        if (childNode is MemberAccessExpressionSyntax thisIsForSimpleLambdas)
-        {
-          _ = thisIsForSimpleLambdas.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
-          return true;
-        }
+      if (childNode is MemberAccessExpressionSyntax thisIsForSimpleLambdas)
+        return thisIsForSimpleLambdas.Expression is BaseExpressionSyntax;
 
-        var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
-        invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
-        simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
-      }
-      else
-      {
-        var nextIdentifierText = (((childNode as InvocationExpressionSyntax)?.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax)?.Identifier.Text;
-        if (nextIdentifierText is not "Next")
-          return false;
+      var expressionStatementNode = childNode as ExpressionStatementSyntax;
+      invocationExpressionNode = expressionStatementNode?.Expression as InvocationExpressionSyntax;
+      simpleMemberAccessExpressionNode = invocationExpressionNode?.Expression as MemberAccessExpressionSyntax;
+      var baseExpressionSyntax = simpleMemberAccessExpressionNode?.Expression as BaseExpressionSyntax;
 
-        invocationExpressionNode = (childNode as InvocationExpressionSyntax) ?? throw new InvalidOperationException();
-        simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
-      }
-
-
-      if (!isMixin)
-        _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
+      if (baseExpressionSyntax == null) return false;
     }
-    catch (InvalidOperationException)
+    else
     {
-      return false;
+      var nextIdentifierText = (((childNode as InvocationExpressionSyntax)?.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax)?.Identifier.Text;
+      if (nextIdentifierText is not "Next")
+        return false;
+
+      invocationExpressionNode = childNode as InvocationExpressionSyntax;
+      simpleMemberAccessExpressionNode = invocationExpressionNode?.Expression as MemberAccessExpressionSyntax;
+
+      if (simpleMemberAccessExpressionNode == null) return false;
     }
 
 
@@ -457,8 +449,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //Method signature of BaseCall
-    var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
-    var arguments = invocationExpressionNode.ArgumentList.Arguments;
+    var nameOfCalledMethod = simpleMemberAccessExpressionNode!.Name.Identifier.Text;
+    var arguments = invocationExpressionNode!.ArgumentList.Arguments;
     var numberOfArguments = arguments.Count;
     var typesOfArguments = arguments.Select(
         arg =>
@@ -489,8 +481,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     //min... minimal number of basecalls
     //max... maximal number of basecalls
+
     //-1 means it returns
+    const int RETURNS = -1;
     //-2 means a diagnostic was found
+    const int DIAGNOSTIC_FOUND = -2;
 
 
     var listOfResults = new List<(int min, int max)>();
@@ -539,10 +534,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //find the overall min and max
-    listOfResults.RemoveAll(item => item == (-1, -1));
+    listOfResults.RemoveAll(item => item == (RETURNS, RETURNS));
 
     if (listOfResults.Count == 0)
-      return hasElseWithNoIf ? (-1, -1, NoDiagnostic) : (0, 0, NoDiagnostic);
+      return hasElseWithNoIf ? (RETURNS, RETURNS, NoDiagnostic) : (0, 0, NoDiagnostic);
 
     min = listOfResults[0].min;
     max = listOfResults[0].max;
@@ -562,8 +557,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     DiagnosticDescriptor? GetDiagnosticDescription (int minLocal, int maxLocal)
     {
       if (maxLocal >= 2) return MultipleBaseCalls;
-      if (minLocal == 0) return NoBaseCall;
-      return NoDiagnostic;
+      return minLocal == 0 ? NoBaseCall : NoDiagnostic;
     }
 
 
@@ -587,13 +581,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         {
           var (resultMin, resultMax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, minLocal, maxLocal, isMixin);
 
-          if (resultMin == -2) //recursion found a diagnostic -> stop everything
+          if (resultMin == DIAGNOSTIC_FOUND) //recursion found a diagnostic -> stop everything
           {
             baseCallCheckerRecursive = (resultMin, resultMax, resDiagnostic);
             return true;
           }
 
-          if (resultMin == -1)
+          if (resultMin == RETURNS)
           {
             diagnostic = resDiagnostic;
             minLocal = resultMin;
@@ -614,8 +608,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           }
 
           diagnostic = GetDiagnosticDescription(minLocal, maxLocal);
-          minLocal = -1;
-          maxLocal = -1;
+          minLocal = RETURNS;
+          maxLocal = RETURNS;
           break;
         }
 
@@ -625,7 +619,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))
               || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))))
           {
-            baseCallCheckerRecursive = (-2, -2, InTryOrCatch);
+            baseCallCheckerRecursive = (DIAGNOSTIC_FOUND, DIAGNOSTIC_FOUND, InTryOrCatch);
             return true;
           }
 
@@ -667,7 +661,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       if (diagnostic != null) //found a diagnostic
       {
-        baseCallCheckerRecursive = (-2, -2, diagnostic);
+        baseCallCheckerRecursive = (DIAGNOSTIC_FOUND, DIAGNOSTIC_FOUND, diagnostic);
         return true;
       }
 
@@ -688,7 +682,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         node.SyntaxTree,
         node.Identifier.Span
     );
-    
+
     context.ReportDiagnostic(Diagnostic.Create(descriptor, squiggliesLocation));
   }
 
