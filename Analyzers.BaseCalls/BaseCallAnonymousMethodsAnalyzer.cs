@@ -62,7 +62,7 @@ public class BaseCallAnonymousMethodsAnalyzer : DiagnosticAnalyzer
       body = anonymousMethod.Body;
     }
 
-    if (BaseCallAnalyzer.ContainsAnyBaseCall(context, body))
+    if (BaseCallAnalyzer.ContainsBaseCall(context, body, false, false))
     {
       ReportBaseCallInAnonymousMethodDiagnostic(context, anonymousMethod);
     }
