@@ -5,7 +5,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 using System.Threading.Tasks;
 using Xunit;
 
-public class BaseCallAnalyzerTest
+public class LocalFunctionTests
 {
   [Fact]
   public async Task LocalFunction_WithoutBaseCall_ReportsNothing ()

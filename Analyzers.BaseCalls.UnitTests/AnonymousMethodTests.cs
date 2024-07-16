@@ -5,7 +5,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 using System.Threading.Tasks;
 using Xunit;
 
-public class BaseCallAnonymousMethodsTest
+public class AnonymousMethodsTests
 {
   [Fact]
   public async Task AnonymousMethod_WithoutBaseCall_ReportsNothing ()
