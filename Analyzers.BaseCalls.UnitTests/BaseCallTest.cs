@@ -2026,4 +2026,45 @@ public class DerivedClass : BaseClass
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+  
+  [Fact]
+  public async Task MixinNormalNextCall ()
+  {
+    const string text = @"
+using System;
+using Remotion.Mixins;
+
+[assembly:Mix(typeof(MixTarget), typeof(DerivedClass))]
+
+public interface IParent
+{
+  void OverridableMethod ();
+}
+
+
+public class DerivedClass : Mixin<System.Object, IParent> {
+  [OverrideTarget]
+  public void OverridableMethod ()
+  {
+    Console.WriteLine(""test1"");
+    Next.OverridableMethod();
+  }
+}
+
+public class MixTarget : System.Object
+{
+  public void CallMethod ()
+  {
+    OverridableMethod();
+  }
+  protected virtual void OverridableMethod ()
+  {
+    Console.WriteLine(""test2"");
+  }
+}
+";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 }
