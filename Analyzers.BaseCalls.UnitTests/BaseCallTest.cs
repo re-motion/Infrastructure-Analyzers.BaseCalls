@@ -137,7 +137,7 @@ public class BaseCallTest
 
         """;
 
-    var expected = new DiagnosticResult[]
+    var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
@@ -179,7 +179,7 @@ public class BaseCallTest
         """;
 
 
-    var expected = new DiagnosticResult[]
+    var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
@@ -255,7 +255,7 @@ public class BaseCallTest
 
         """;
 
-    var expected = new DiagnosticResult[]
+    var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
@@ -2067,7 +2067,7 @@ public class MixTarget : System.Object
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
   public async Task MixinNoNextCall ()
   {
