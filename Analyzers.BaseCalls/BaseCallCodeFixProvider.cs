@@ -13,6 +13,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
+
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(BaseCallCodeFixProvider))]
 [Shared]
 public class BaseCallCodeFixProvider : CodeFixProvider
@@ -20,12 +21,12 @@ public class BaseCallCodeFixProvider : CodeFixProvider
   public override ImmutableArray<string> FixableDiagnosticIds =>
       ["RMBCA0001", "RMBCA0005", "RMBCA0006", "RMBCA0007", "RMBCA0008"];
 
-  public sealed override FixAllProvider GetFixAllProvider()
+  public sealed override FixAllProvider GetFixAllProvider ()
   {
     return WellKnownFixAllProviders.BatchFixer;
   }
 
-  public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
+  public sealed override async Task RegisterCodeFixesAsync (CodeFixContext context)
   {
     var diagnostic = context.Diagnostics.First();
     var diagnosticSpan = diagnostic.Location.SourceSpan;
@@ -41,7 +42,7 @@ public class BaseCallCodeFixProvider : CodeFixProvider
         diagnostic);
   }
 
-  private async Task<Document> AddIgnoreAttributeAsync(Document document, MethodDeclarationSyntax methodDeclaration, CancellationToken cancellationToken)
+  private async Task<Document> AddIgnoreAttributeAsync (Document document, MethodDeclarationSyntax methodDeclaration, CancellationToken cancellationToken)
   {
     //create new attribute
     var attribute = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("IgnoreBaseCallCheck"));
@@ -52,6 +53,10 @@ public class BaseCallCodeFixProvider : CodeFixProvider
 
     //update syntax root
     var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+    
+    if (root == null)
+      return document;
+
     var newRoot = root.ReplaceNode(methodDeclaration, newMethodDeclaration);
 
     return document.WithSyntaxRoot(newRoot);
