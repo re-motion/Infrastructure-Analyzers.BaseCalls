@@ -63,7 +63,7 @@ public class DerivedClass : BaseClass
 
     test.ExpectedDiagnostics.Add(
         CSharpCodeFixVerifier<BaseCallAnalyzer, BaseCallCodeFixProvider, XUnitVerifier>
-            .Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+            .Diagnostic(BaseCallAnalyzer.NoBaseCall)
             .WithLocation(14, 5)
             .WithArguments("Test"));
 

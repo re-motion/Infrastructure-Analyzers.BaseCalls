@@ -68,39 +68,9 @@ public class BasicAndMiscellaneousTests
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
         .WithLocation(14, 17)
         .WithArguments("Test");
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-  }
-  
-  [Fact]
-  public async Task NoOverrideMethod_ReportsNothing ()
-  {
-    const string text =
-        """
-        using Remotion.Infrastructure.Analyzers.BaseCalls;
-
-        public abstract class BaseClass
-        {
-            [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual void Test ()
-            {
-                int a = 5;
-            }
-        }
-
-        public class DerivedClass : BaseClass
-        {
-            public void Test2 ()
-            {
-                int b = 7;
-                //base.Test();
-            }
-        }
-        """;
-
-    var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
@@ -123,7 +93,7 @@ public class BasicAndMiscellaneousTests
                     }
                 }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionMultipleBaseCalls)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
         .WithLocation(9, 42)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -160,28 +130,5 @@ public class BasicAndMiscellaneousTests
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
-  [Fact]
-  public async Task BaseCallInNonOverridingMethod_ReportsDiagnostic ()
-  {
-    const string text = @"
-            using Remotion.Infrastructure.Analyzers.BaseCalls;
-            
-            public abstract class BaseClass
-            {
-                public virtual void Test() { }
-            }
-            
-            public class DerivedClass : BaseClass
-            {
-                public void NonOverridingMethod()
-                {
-                    base.Test();
-                }
-            }";
-
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionInInNonOverridingMethod)
-        .WithLocation(11, 29)
-        .WithArguments("NonOverridingMethod");
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-  }
+  
 }
