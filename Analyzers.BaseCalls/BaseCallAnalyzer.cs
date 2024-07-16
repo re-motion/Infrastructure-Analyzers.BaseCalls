@@ -188,7 +188,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     if (!IsMixin(context)) return false;
 
 
-    // for mixins -> check if there is an [OverrideTarget] atttribute
+    // for mixins -> check if there is an [OverrideTarget] attribute
     SyntaxList<AttributeListSyntax> attributeLists;
     if (context.Node is MethodDeclarationSyntax methodDeclaration)
       attributeLists = methodDeclaration.AttributeLists;
@@ -304,21 +304,23 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static bool IsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode childNode, bool baseCallMustBeCorrect, bool isMixin)
   {
-    if (!isMixin)
-    {
-      InvocationExpressionSyntax invocationExpressionNode;
-      MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
-      try
-      {
-        //trying to cast a line of code to an BaseExpressionSyntax, example Syntax tree:
-        /*
-         MethodDeclaration
-          Body: Block
-            Expression: InvocationExpression
-              Expression: SimpleMemberAccessExpression
-                Expression: BaseExpression
-        */
+    var node = (context.Node as MethodDeclarationSyntax)!;
 
+    InvocationExpressionSyntax invocationExpressionNode;
+    MemberAccessExpressionSyntax simpleMemberAccessExpressionNode;
+
+    try
+    {
+      //trying to cast a line of code to an BaseExpressionSyntax, example Syntax tree:
+      /*
+       MethodDeclaration
+        Body: Block
+          Expression: InvocationExpression
+            Expression: SimpleMemberAccessExpression
+              Expression: BaseExpression
+      */
+      if (!isMixin)
+      {
         if (childNode is MemberAccessExpressionSyntax thisIsForSimpleLambdas)
         {
           _ = thisIsForSimpleLambdas.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
@@ -328,61 +330,66 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         var expressionStatementNode = childNode as ExpressionStatementSyntax ?? throw new InvalidOperationException();
         invocationExpressionNode = expressionStatementNode.Expression as InvocationExpressionSyntax ?? throw new InvalidOperationException();
         simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
-
-        _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
       }
-      catch (InvalidOperationException)
+      else
       {
-        return false;
+        var nextIdentifierText = (((childNode as InvocationExpressionSyntax)?.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax)?.Identifier.Text;
+        if (nextIdentifierText is not "Next")
+          return false;
+
+        invocationExpressionNode = (childNode as InvocationExpressionSyntax) ?? throw new InvalidOperationException();
+        simpleMemberAccessExpressionNode = invocationExpressionNode.Expression as MemberAccessExpressionSyntax ?? throw new InvalidOperationException();
       }
 
 
-      if (context.Node is not MethodDeclarationSyntax node || !baseCallMustBeCorrect) return true;
-
-
-      //Method signature
-      var methodName = node.Identifier.Text;
-      var parameters = node.ParameterList.Parameters;
-      var numberOfParameters = parameters.Count;
-      var typesOfParameters = parameters.Select(
-          param =>
-              context.SemanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
-
-      //Method signature of BaseCall
-      var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
-      var arguments = invocationExpressionNode.ArgumentList.Arguments;
-      var numberOfArguments = arguments.Count;
-      var typesOfArguments = arguments.Select(
-          arg =>
-              context.SemanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
-
-
-      //check if it's really a basecall
-      if (nameOfCalledMethod.Equals(methodName)
-          && numberOfParameters == numberOfArguments
-          && typesOfParameters.Length == typesOfArguments.Length
-          && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
-              .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
-        return true;
-
-      //wrong basecall
-      var squiggliesLocation = Location.Create(
-          invocationExpressionNode.SyntaxTree,
-          TextSpan.FromBounds(
-              invocationExpressionNode.GetLeadingTrivia().Span.End,
-              invocationExpressionNode.ArgumentList.Span.End
-          )
-      );
-      context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionWrongBaseCall, squiggliesLocation));
+      if (!isMixin)
+        _ = simpleMemberAccessExpressionNode.Expression as BaseExpressionSyntax ?? throw new InvalidOperationException();
+    }
+    catch (InvalidOperationException)
+    {
       return false;
     }
-    else
-    {
-      var nextIdentifierText = ((childNode as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax)?.Identifier.Text;
-      if (nextIdentifierText is not "Next")
-        return false;
+
+
+    if (!baseCallMustBeCorrect) return true;
+
+
+    //Method signature
+    var methodName = node.Identifier.Text;
+    var parameters = node.ParameterList.Parameters;
+    var numberOfParameters = parameters.Count;
+    var typesOfParameters = parameters.Select(
+        param =>
+            context.SemanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
+
+
+    //Method signature of BaseCall
+    var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
+    var arguments = invocationExpressionNode.ArgumentList.Arguments;
+    var numberOfArguments = arguments.Count;
+    var typesOfArguments = arguments.Select(
+        arg =>
+            context.SemanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
+
+
+    //check if it's really a basecall
+    if (nameOfCalledMethod.Equals(methodName)
+        && numberOfParameters == numberOfArguments
+        && typesOfParameters.Length == typesOfArguments.Length
+        && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
+            .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
       return true;
-    }
+
+    //wrong basecall
+    var squiggliesLocation = Location.Create(
+        invocationExpressionNode.SyntaxTree,
+        TextSpan.FromBounds(
+            invocationExpressionNode.GetLeadingTrivia().Span.End,
+            invocationExpressionNode.ArgumentList.Span.End
+        )
+    );
+    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptionWrongBaseCall, squiggliesLocation));
+    return true;
   }
 
   private static (int min, int max, BaseCallType diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int min, int max, bool isMixin)

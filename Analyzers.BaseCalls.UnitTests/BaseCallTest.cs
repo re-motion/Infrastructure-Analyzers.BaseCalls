@@ -2026,7 +2026,7 @@ public class DerivedClass : BaseClass
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
   public async Task MixinNormalNextCall ()
   {
@@ -2065,6 +2065,104 @@ public class MixTarget : System.Object
 ";
 
     var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+  
+  [Fact]
+  public async Task MixinNoNextCall ()
+  {
+    const string text = @"
+using System;
+using Remotion.Mixins;
+
+[assembly:Mix(typeof(MixTarget), typeof(DerivedClass))]
+
+public interface IParent
+{
+  void OverridableMethod ();
+}
+
+
+public class DerivedClass : Mixin<System.Object, IParent> {
+  [OverrideTarget]
+  public void OverridableMethod ()
+  {
+    Console.WriteLine(""test1"");
+    //Next.OverridableMethod();
+  }
+}
+
+public class MixTarget : System.Object
+{
+  public void CallMethod ()
+  {
+    OverridableMethod();
+  }
+  protected virtual void OverridableMethod ()
+  {
+    Console.WriteLine(""test2"");
+  }
+}
+";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionNoBaseCallFound)
+        .WithLocation(15, 15)
+        .WithArguments("NonOverridingMethod");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task MixinWrongNextCall ()
+  {
+    const string text = @"
+using System;
+using ConsoleApp1;
+using Remotion.Mixins;
+
+[assembly:Mix(typeof(MixTarget), typeof(DerivedClass))]
+
+namespace ConsoleApp1;
+
+
+public interface IParent
+{
+  void OverridableMethod ();
+  void OverridableMethod2 ();
+}
+
+
+public class DerivedClass : Mixin<System.Object, IParent>
+{
+  
+  [OverrideTarget]
+  public void OverridableMethod ()
+  {
+    Console.WriteLine(""test1"");
+    Next.OverridableMethod2();
+  }
+}
+
+public class MixTarget : System.Object
+{
+  public void CallMethod ()
+  {
+    OverridableMethod();
+  }
+  protected virtual void OverridableMethod2 ()
+  {
+    Console.WriteLine(""test2"");
+  }
+  protected virtual void OverridableMethod ()
+  {
+    Console.WriteLine(""test3"");
+  }
+}
+
+";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.DiagnosticDescriptionWrongBaseCall)
+        .WithLocation(25, 5)
+        .WithArguments("NonOverridingMethod");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }
