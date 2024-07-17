@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu
 // SPDX-License-Identifier: MIT
+using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
+
 namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 using System.Threading.Tasks;
