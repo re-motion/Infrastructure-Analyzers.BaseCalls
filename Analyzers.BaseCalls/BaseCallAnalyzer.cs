@@ -403,7 +403,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     MemberAccessExpressionSyntax? simpleMemberAccessExpressionNode;
 
 
-    //trying to cast a line of code to an BaseExpressionSyntax, example Syntax tree:
+    //trying to cast the childNode to an BaseExpressionSyntax, example Syntax tree:
     /*
      MethodDeclaration
       Body: Block
@@ -477,17 +477,51 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return true;
   }
 
+  /// <summary>
+  /// Checks a block of Code for a BaseCall and looks if there are multiple, none, there is one in a loop, etc.. It also takes different branches into consideration.
+  /// Basic explanation of the algorithm (I advice you to first read the parameter descriptions):
+  /// 
+  /// It first looks to see if the argument node is an if-statement.
+  /// If so, it loops through all of the branches and checks each one for a basecall. Else it just analyzes the childNodes of the given node.
+  /// Now it loops through the childNodes and check each one if it is:
+  /// 
+  /// If Statement:
+  ///   Calls a Recursion, then check if it found a diagnostic (-> return the found diagnostic) or every branch in the if returns (return returns)
+  /// Return statement:
+  ///   Checks if the return statement includes a BaseCall, then returns the -1, -1, diagnostic of min and max before they were -1.
+  /// Try-Catch-Block:
+  ///   Checks if the try or any catch block contains a basecall (-> return TryCatchDiagnostic), then calls a recursion with the finally block (same as in If).
+  /// Loop:
+  ///   Checks if the loop contains a basecall (-> return LoopDiagnostic)
+  /// Switch:
+  ///   Checks if every branch of the if contains a basecall (else -> return BaseCallMissingDiagnostic).
+  /// BaseCall:
+  ///   increment min and max by 1.
+  ///
+  /// min and max will be stored in listOfResults and the next branch will be checked.
+  /// Returns the lowest min and the highest max in listOfResults
+  /// </summary>
+  /// <param name="context">is there to call other methods that need this parameter</param>
+  /// <param name="node">current node to check, the node itself wont be checked, just the childNodes of it</param>
+  /// <param name="min">Minimum Number of BaseCalls that could get executed</param>
+  /// <param name="max">Maximum Number of BaseCalls that could get executed</param>
+  /// magic Numbers for min and max:
+  ///   -1: the checked block always returns
+  ///   -2: there is a diagnostic in the checked block
+  /// <param name="isMixin">
+  /// This project is made to work with the Framework Remotion.Mixins.
+  /// If it is a mixin, a base call has the form of Next.Method(); instead of base.Method();</param>
+  /// <returns>Returns the number of baseCalls in the path with the least and most baseCalls and the diagnostic</returns>
+  /// <exception cref="Exception">
+  /// NullReferenceException("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause (method does not have a body)")
+  ///   will be thrown when the node that is parsed does not have a body. In the current implementation this should be impossible as its checked before.
+  /// This Method should not throw any other exceptions.
+  /// </exception>
   private static (int min, int max, DiagnosticDescriptor? diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int min, int max, bool isMixin)
   {
-    //min... minimal number of basecalls
-    //max... maximal number of basecalls
-
-    //-1 means it returns
-    const int RETURNS = -1;
-    //-2 means a diagnostic was found
-    const int DIAGNOSTIC_FOUND = -2;
-
-
+    const int returns = -1;
+    const int diagnosticFound = -2;
+    
     var listOfResults = new List<(int min, int max)>();
     var ifStatementSyntax = node as IfStatementSyntax;
     var hasElseWithNoIf = ifStatementSyntax == null;
@@ -515,7 +549,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           childNodes = methodDeclaration.ExpressionBody.ChildNodes();
 
         else
-          throw new Exception("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause");
+          throw new NullReferenceException("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause (method does not have a body)");
       }
 
 
@@ -534,10 +568,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //find the overall min and max
-    listOfResults.RemoveAll(item => item == (RETURNS, RETURNS));
+    listOfResults.RemoveAll(item => item == (returns, returns));
 
     if (listOfResults.Count == 0)
-      return hasElseWithNoIf ? (RETURNS, RETURNS, NoDiagnostic) : (0, 0, NoDiagnostic);
+      return hasElseWithNoIf ? (returns, returns, NoDiagnostic) : (0, 0, NoDiagnostic);
 
     min = listOfResults[0].min;
     max = listOfResults[0].max;
@@ -581,17 +615,17 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         {
           var (resultMin, resultMax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, minLocal, maxLocal, isMixin);
 
-          if (resultMin == DIAGNOSTIC_FOUND) //recursion found a diagnostic -> stop everything
+          if (resultMin == diagnosticFound) //recursion found a diagnostic -> stop everything
           {
             baseCallCheckerRecursive = (resultMin, resultMax, resDiagnostic);
             return true;
           }
 
-          if (resultMin == RETURNS)
+          if (resultMin == returns)
           {
             diagnostic = resDiagnostic;
-            minLocal = resultMin;
-            maxLocal = resultMax;
+            minLocal = returns;
+            maxLocal = returns;
             break;
           }
 
@@ -608,8 +642,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           }
 
           diagnostic = GetDiagnosticDescription(minLocal, maxLocal);
-          minLocal = RETURNS;
-          maxLocal = RETURNS;
+          minLocal = returns;
+          maxLocal = returns;
           break;
         }
 
@@ -619,7 +653,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))
               || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))))
           {
-            baseCallCheckerRecursive = (DIAGNOSTIC_FOUND, DIAGNOSTIC_FOUND, InTryOrCatch);
+            baseCallCheckerRecursive = (diagnosticFound, diagnosticFound, InTryOrCatch);
             return true;
           }
 
@@ -661,7 +695,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       if (diagnostic != null) //found a diagnostic
       {
-        baseCallCheckerRecursive = (DIAGNOSTIC_FOUND, DIAGNOSTIC_FOUND, diagnostic);
+        baseCallCheckerRecursive = (diagnosticFound, diagnosticFound, diagnostic);
         return true;
       }
 
