@@ -86,7 +86,7 @@ public class BasicAndMiscellaneousTests
 
                 class DerivedClass : BaseClass
                 {
-                    public override void {|#0:Method|}()
+                    public override void Method()
                     {
                         base.Method();
                         base.Method();
@@ -95,7 +95,7 @@ public class BasicAndMiscellaneousTests
                 }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
-        .WithLocation(9, 42)
+        .WithLocation(12, 25)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

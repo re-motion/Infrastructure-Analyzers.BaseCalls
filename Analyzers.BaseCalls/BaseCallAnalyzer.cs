@@ -780,8 +780,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           }
         }
 
-        else if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
+        else if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location4))
+        {
           numberOfBaseCallsLocal.Increment();
+          if (numberOfBaseCallsLocal.Max >= 2)
+          {
+            diagnostic = Diagnostic.Create(MultipleBaseCalls, location4);
+            break;
+          }
+        }
       }
 
       if (diagnostic != null) //found a diagnostic
