@@ -17,7 +17,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
   //rules
-  private static readonly DiagnosticDescriptor? NoDiagnostic = null;
+  public static readonly DiagnosticDescriptor? NoDiagnostic = null;
 
   private const string c_category = "Usage";
 
@@ -161,6 +161,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static void AnalyzeMethod (SyntaxNodeAnalysisContext context)
   {
     var generalNode = context.Node;
+
+    //also checks if there are baseCalls in Anonymous Methods and local functions
     switch (generalNode)
     {
       case AnonymousMethodExpressionSyntax or SimpleLambdaExpressionSyntax or ParenthesizedLambdaExpressionSyntax:
@@ -171,9 +173,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         return;
     }
 
-    var node = (generalNode as MethodDeclarationSyntax)!;
-
-    var isMixin = IsMixin(context);
+    var node = (MethodDeclarationSyntax)generalNode;
 
     if (!BaseCallCheckShouldHappen(context)) return;
 
@@ -185,7 +185,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
 
     // normal, overriding methods
-    var (_, _, diagnostic) = BaseCallCheckerRecursive(context, node, 0, 0, isMixin);
+    var isMixin = IsMixin(context);
+    var (_, diagnostic) = BaseCallCheckerRecursive(context, node, new NumberOfBaseCalls(0), isMixin);
 
     ReportDiagnostic(context, diagnostic);
     return;
@@ -359,6 +360,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
   }
 
+  /// <summary>
+  /// Checks if the Method overrides and if there is an attribute preventing the baseCall check.
+  /// </summary>
+  /// <param name="context">Context is there to call other methods that need this parameter</param>
+  /// <returns>true, if a baseCall check should happen</returns>
+  /// <exception cref="ArgumentOutOfRangeException">the attribute BaseCall should only have 3 members</exception>
+  /// <exception cref="Exception">This method should not throw any other exceptions</exception>
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
   {
     if (context.Node is LocalFunctionStatementSyntax) return HasIgnoreBaseCallCheckAttribute();
@@ -387,7 +395,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     if (overriddenMethodAsNode != null && overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
       return false;
 
-    //check base method for attribute if it does not have one, next base method will be checked
+    //check base method for attribute if it does not have one, the next base method will be checked
     while (overriddenMethodAsNode != null)
     {
       //check overridden method for BaseCallCheck attribute
@@ -470,19 +478,19 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       return false;
     }
-    
+
     bool DoesOverride ()
     {
       if (node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return true;
 
       if (!IsMixin(context)) return false;
-      
+
       // for mixins -> check if there is an [OverrideTarget] attribute
       SyntaxList<AttributeListSyntax> attributeLists;
       if (context.Node is MethodDeclarationSyntax methodDeclaration)
         attributeLists = methodDeclaration.AttributeLists;
       else
-        throw new Exception("Expected a method declaration");
+        throw new ArgumentException("Expected a method declaration");
 
 
       foreach (var attributeListSyntax in attributeLists)
@@ -493,25 +501,25 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         if (imSymbol == null) continue;
         var fullNameOfNamespace = imSymbol.ToString();
 
-        if (fullNameOfNamespace.Equals("Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()"))
-          return true;
+        if (fullNameOfNamespace.Equals("Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()")) return true;
       }
+
       return false;
     }
   }
 
   /// <summary>
-  /// Checks a block of Code for a BaseCall and looks if there are multiple, none, there is one in a loop, etc.. It also takes different branches into consideration.
-  /// Basic explanation of the algorithm (I advice you to first read the parameter descriptions):
+  /// Checks a block of Code for a BaseCall and looks if there are multiple, none, there is one in a loop, etc. It also takes different branches into consideration.
+  /// Basic explanation of the algorithm (I advise you to first read the parameter descriptions):
   /// 
   /// It first looks to see if the argument node is an if-statement.
-  /// If so, it loops through all of the branches and checks each one for a basecall. Else it just analyzes the childNodes of the given node.
+  /// If so, it loops through all the branches and checks each one for a basecall. Else it just analyzes the childNodes of the given node.
   /// Now it loops through the childNodes and check each one if it is:
   /// 
   /// If Statement:
   ///   Calls a Recursion, then check if it found a diagnostic (-> return the found diagnostic) or every branch in the if returns (return returns)
   /// Return statement:
-  ///   Checks if the return statement includes a BaseCall, then returns the -1, -1, diagnostic of min and max before they were -1.
+  ///   Checks if the return statement includes a BaseCall, then returns -1, diagnostic of numberOfBaseCalls before it was -1.
   /// Try-Catch-Block:
   ///   Checks if the try or any catch block contains a basecall (-> return TryCatchDiagnostic), then calls a recursion with the finally block (same as in If).
   /// Loop:
@@ -519,33 +527,40 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   /// Switch:
   ///   Checks if every branch of the if contains a basecall (else -> return BaseCallMissingDiagnostic).
   /// BaseCall:
-  ///   increment min and max by 1.
+  ///   increment numberOfBaseCalls by 1.
   ///
-  /// min and max will be stored in listOfResults and the next branch will be checked.
+  /// numberOfBaseCalls will be stored in listOfResults and the next branch will be checked.
   /// Returns the lowest min and the highest max in listOfResults
   /// </summary>
   /// <param name="context">is there to call other methods that need this parameter</param>
-  /// <param name="node">current node to check, the node itself wont be checked, just the childNodes of it</param>
-  /// <param name="min">Minimum Number of BaseCalls that could get executed</param>
-  /// <param name="max">Maximum Number of BaseCalls that could get executed</param>
-  /// magic Numbers for min and max:
+  /// <param name="node">current node to check, the node itself won't be checked, just the childNodes of it</param>
+  /// <param name="numberOfBaseCalls">
+  /// .min: Minimum Number of BaseCalls that could get executed
+  /// .max: Maximum Number of BaseCalls that could get executed
+  /// </param>
+  /// magic Numbers for numberOfBaseCalls:
   ///   -1: the checked block always returns
   ///   -2: there is a diagnostic in the checked block
   /// <param name="isMixin">
   /// This project is made to work with the Framework Remotion.Mixins.
   /// If it is a mixin, a base call has the form of Next.Method(); instead of base.Method();</param>
   /// <returns>Returns the number of baseCalls in the path with the least and most baseCalls and the diagnostic</returns>
+  /// /// <exception cref="NullReferenceException">
+  /// will be thrown when the node that is parsed does not have a body. In the current implementation this should be impossible as it's checked before.
+  /// </exception>
   /// <exception cref="Exception">
-  /// NullReferenceException("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause (method does not have a body)")
-  ///   will be thrown when the node that is parsed does not have a body. In the current implementation this should be impossible as its checked before.
   /// This Method should not throw any other exceptions.
   /// </exception>
-  private static (int min, int max, DiagnosticDescriptor? diagnostic) BaseCallCheckerRecursive (SyntaxNodeAnalysisContext context, SyntaxNode node, int min, int max, bool isMixin)
+  private static (NumberOfBaseCalls numberOfBaseCalls, DiagnosticDescriptor? diagnostic) BaseCallCheckerRecursive (
+      SyntaxNodeAnalysisContext context,
+      SyntaxNode node,
+      NumberOfBaseCalls numberOfBaseCalls,
+      bool isMixin)
   {
     const int returns = -1;
     const int diagnosticFound = -2;
 
-    var listOfResults = new List<(int min, int max)>();
+    var listOfResults = new List<NumberOfBaseCalls>();
     var ifStatementSyntax = node as IfStatementSyntax;
     var hasElseWithNoIf = ifStatementSyntax == null;
     ElseClauseSyntax? elseClauseSyntax = null;
@@ -577,7 +592,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       //loop over childNodes
-      if (LoopOverChildNodes(childNodes, min, max, NoDiagnostic, out var baseCallCheckerRecursive))
+      if (LoopOverChildNodes(childNodes, numberOfBaseCalls, NoDiagnostic, out var baseCallCheckerRecursive))
         return baseCallCheckerRecursive;
 
 
@@ -591,43 +606,42 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //find the overall min and max
-    listOfResults.RemoveAll(item => item == (returns, returns));
+    listOfResults.RemoveAll(item => item.Equals(new NumberOfBaseCalls(returns)));
 
     if (listOfResults.Count == 0)
-      return hasElseWithNoIf ? (returns, returns, NoDiagnostic) : (0, 0, NoDiagnostic);
+      return hasElseWithNoIf ? (new NumberOfBaseCalls(returns), NoDiagnostic) : (new NumberOfBaseCalls(0), NoDiagnostic);
 
-    min = listOfResults[0].min;
-    max = listOfResults[0].max;
+    numberOfBaseCalls.Min = listOfResults[0].Min;
+    numberOfBaseCalls.Max = listOfResults[0].Max;
 
     //when the if does not have an else with no if in it, it is not guaranteed that it will go through a branch
-    if (!hasElseWithNoIf) min = 0;
+    if (!hasElseWithNoIf) numberOfBaseCalls.Min = 0;
 
-    foreach (var (minInstance, maxInstance) in listOfResults)
+    foreach (var numberOfBaseCallsListItem in listOfResults)
     {
-      min = Math.Min(min, minInstance);
-      max = Math.Max(max, maxInstance);
+      numberOfBaseCalls.Min = Math.Min(numberOfBaseCalls.Min, numberOfBaseCallsListItem.Min);
+      numberOfBaseCalls.Max = Math.Max(numberOfBaseCalls.Max, numberOfBaseCallsListItem.Max);
     }
 
-    return (min, max, GetDiagnosticDescription(min, max));
+    return (numberOfBaseCalls, GetDiagnosticDescription(numberOfBaseCalls));
 
 
-    DiagnosticDescriptor? GetDiagnosticDescription (int minLocal, int maxLocal)
+    DiagnosticDescriptor? GetDiagnosticDescription (NumberOfBaseCalls numberOfBaseCallsLocal)
     {
-      if (maxLocal >= 2) return MultipleBaseCalls;
-      return minLocal == 0 ? NoBaseCall : NoDiagnostic;
+      if (numberOfBaseCallsLocal.Max >= 2) return MultipleBaseCalls;
+      return numberOfBaseCallsLocal.Min == 0 ? NoBaseCall : NoDiagnostic;
     }
 
 
     bool LoopOverChildNodes ( //return true if a diagnostic was found
         IEnumerable<SyntaxNode>? childNodes,
-        int minLocal,
-        int maxLocal,
+        NumberOfBaseCalls numberOfBaseCallsLocal,
         DiagnosticDescriptor? diagnostic,
-        out (int min, int max, DiagnosticDescriptor? diagnostic) baseCallCheckerRecursive)
+        out (NumberOfBaseCalls numberOfBaseCalls, DiagnosticDescriptor? diagnostic) result)
     {
       if (childNodes == null)
       {
-        baseCallCheckerRecursive = (minLocal, maxLocal, diagnostic);
+        result = (numberOfBaseCallsLocal, diagnostic);
         return diagnostic != null;
       }
 
@@ -636,37 +650,37 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         //nested if -> recursion
         if (IsIf(childNode) || IsElse(childNode))
         {
-          var (resultMin, resultMax, resDiagnostic) = BaseCallCheckerRecursive(context, childNode, minLocal, maxLocal, isMixin);
+          var (numberOfBaseCallsResult, resultDiagnostic) = BaseCallCheckerRecursive(context, childNode, numberOfBaseCallsLocal, isMixin);
 
-          if (resultMin == diagnosticFound) //recursion found a diagnostic -> stop everything
+          if (numberOfBaseCallsResult.Min == diagnosticFound) //recursion found a diagnostic -> stop everything
           {
-            baseCallCheckerRecursive = (resultMin, resultMax, resDiagnostic);
+            result = (numberOfBaseCallsResult, resultDiagnostic);
             return true;
           }
 
-          if (resultMin == returns)
+          if (numberOfBaseCallsResult.Min == returns)
           {
-            diagnostic = resDiagnostic;
-            minLocal = returns;
-            maxLocal = returns;
+            diagnostic = resultDiagnostic;
+            numberOfBaseCallsLocal.Min = returns;
+            numberOfBaseCallsLocal.Max = returns;
             break;
           }
 
-          minLocal = Math.Max(minLocal, resultMin);
-          maxLocal = Math.Max(maxLocal, resultMax);
+          numberOfBaseCallsLocal.Min = Math.Max(numberOfBaseCallsLocal.Min, numberOfBaseCallsResult.Min);
+          numberOfBaseCallsLocal.Max = Math.Max(numberOfBaseCallsLocal.Max, numberOfBaseCallsResult.Max);
         }
 
         else if (IsReturn(childNode))
         {
           if (ContainsBaseCall(context, childNode, true, isMixin))
           {
-            minLocal++;
-            maxLocal++;
+            numberOfBaseCallsLocal.Min++;
+            numberOfBaseCallsLocal.Max++;
           }
 
-          diagnostic = GetDiagnosticDescription(minLocal, maxLocal);
-          minLocal = returns;
-          maxLocal = returns;
+          diagnostic = GetDiagnosticDescription(numberOfBaseCallsLocal);
+          numberOfBaseCallsLocal.Min = returns;
+          numberOfBaseCallsLocal.Max = returns;
           break;
         }
 
@@ -676,15 +690,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (((TryStatementSyntax)childNode).Block.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))
               || ((TryStatementSyntax)childNode).Catches.Any(c => c.ChildNodes().Any(n => ContainsBaseCall(context, n, false, isMixin))))
           {
-            baseCallCheckerRecursive = (diagnosticFound, diagnosticFound, InTryOrCatch);
+            result = (new NumberOfBaseCalls(diagnosticFound), InTryOrCatch);
             return true;
           }
 
-          var newChildNodes = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
-          if (LoopOverChildNodes(newChildNodes, minLocal, maxLocal, diagnostic, out baseCallCheckerRecursive))
+          var childNodesOfFinallyBlock = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
+          if (LoopOverChildNodes(childNodesOfFinallyBlock, numberOfBaseCallsLocal, diagnostic, out result))
             return true;
-          minLocal = baseCallCheckerRecursive.min;
-          maxLocal = baseCallCheckerRecursive.max;
+          numberOfBaseCallsLocal.Min = result.numberOfBaseCalls.Min;
+          numberOfBaseCallsLocal.Max = result.numberOfBaseCalls.Max;
         }
 
         else if (IsLoop(childNode) && ContainsBaseCall(context, childNode, false, isMixin))
@@ -697,34 +711,70 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               .All(switchSectionSyntax => ContainsBaseCall(context, switchSectionSyntax, true, isMixin));
 
           if (allContainBaseCall)
-            minLocal++;
-          maxLocal++;
+            numberOfBaseCallsLocal.Min++;
+          numberOfBaseCallsLocal.Max++;
         }
         else if (IsSwitchExpression(childNode) && ContainsBaseCall(context, childNode, true, isMixin))
         {
           var allContainBaseCall = ((SwitchExpressionSyntax)childNode).Arms.All(n => ContainsBaseCall(context, n, true, isMixin));
 
           if (allContainBaseCall)
-            minLocal++;
-          maxLocal++;
+            numberOfBaseCallsLocal.Min++;
+          numberOfBaseCallsLocal.Max++;
         }
 
         else if (ContainsBaseCall(context, childNode, true, isMixin))
         {
-          minLocal++;
-          maxLocal++;
+          numberOfBaseCallsLocal.Min++;
+          numberOfBaseCallsLocal.Max++;
         }
       }
 
       if (diagnostic != null) //found a diagnostic
       {
-        baseCallCheckerRecursive = (diagnosticFound, diagnosticFound, diagnostic);
+        result = (new NumberOfBaseCalls(diagnosticFound), diagnostic);
         return true;
       }
 
-      listOfResults.Add((minLocal, maxLocal));
-      baseCallCheckerRecursive = (minLocal, maxLocal, NoDiagnostic);
+      listOfResults.Add((numberOfBaseCallsLocal));
+      result = (numberOfBaseCallsLocal, NoDiagnostic);
       return false;
+    }
+  }
+
+  private struct NumberOfBaseCalls (int min, int max)
+  {
+    public int Min { get; set; } = min;
+    public int Max { get; set; } = max;
+
+    public NumberOfBaseCalls (int numberOfBaseCalls)
+        : this(numberOfBaseCalls, numberOfBaseCalls)
+    {
+    }
+
+    public static bool operator == (NumberOfBaseCalls left, NumberOfBaseCalls right)
+    {
+      return left.Equals(right);
+    }
+
+    public static bool operator != (NumberOfBaseCalls left, NumberOfBaseCalls right)
+    {
+      return !(left == right);
+    }
+
+    public override bool Equals (object? o)
+    {
+      return o is NumberOfBaseCalls other && Equals(other);
+    }
+
+    public bool Equals (NumberOfBaseCalls other)
+    {
+      return Min == other.Min && Max == other.Max;
+    }
+
+    public override int GetHashCode ()
+    {
+      return (Min * 397) ^ Max;
     }
   }
 
@@ -734,7 +784,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       return;
 
     var node = (MethodDeclarationSyntax)context.Node;
-    //location of the squigglies (whole line of the method declaration)
+    //location of the squigglies (Method Name)
     var squiggliesLocation = Location.Create(
         node.SyntaxTree,
         node.Identifier.Span
@@ -743,11 +793,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     context.ReportDiagnostic(Diagnostic.Create(descriptor, squiggliesLocation));
   }
 
+  // ReSharper disable InconsistentNaming
   private static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsIf = node => node is IfStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsElse = node => node is ElseClauseSyntax;
   private static readonly Func<SyntaxNode, bool> IsReturn = node => node is ReturnStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsTry = node => node is TryStatementSyntax;
   private static readonly Func<SyntaxNode, bool> IsNormalSwitch = node => node is SwitchStatementSyntax;
+
   private static readonly Func<SyntaxNode, bool> IsSwitchExpression = node => node is SwitchExpressionSyntax;
+  // ReSharper restore InconsistentNaming
 }
