@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Testing;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTest;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTests;
 
 public class ComplexBranchesTest
 {
