@@ -215,7 +215,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     {
       var localFunction = context.Node as LocalFunctionStatementSyntax;
 
-      if (HasIgnoreBaseCallCheckAttribute(context))
+      if (BaseCallCheckShouldHappen(context))
         return;
 
 
@@ -312,10 +312,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
   {
+    if (context.Node is LocalFunctionStatementSyntax) return HasIgnoreBaseCallCheckAttribute();
+    
     var node = (MethodDeclarationSyntax)context.Node;
 
     //check for IgnoreBaseCallCheck attribute
-    if (HasIgnoreBaseCallCheckAttribute(context)) return false;
+    if (HasIgnoreBaseCallCheckAttribute()) return false;
 
 
     if (!DoesOverride(context))
@@ -392,6 +394,32 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       return BaseCall.Default;
+    }
+    
+    bool HasIgnoreBaseCallCheckAttribute ()
+    {
+      var attributeLists = context.Node switch
+      {
+          MethodDeclarationSyntax methodDeclaration => methodDeclaration.AttributeLists,
+          LocalFunctionStatementSyntax localFunction => localFunction.AttributeLists,
+          _ => throw new Exception("Expected a method declaration or function declaration")
+      };
+
+      foreach (var attributeListSyntax in attributeLists)
+      {
+        foreach (var attribute in attributeListSyntax.Attributes)
+        {
+          var imSymbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
+
+          if (imSymbol == null) continue;
+          var fullNameOfNamespace = imSymbol.ToString();
+
+          if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
+            return true;
+        }
+      }
+
+      return false;
     }
   }
 
@@ -718,33 +746,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     );
 
     context.ReportDiagnostic(Diagnostic.Create(descriptor, squiggliesLocation));
-  }
-
-
-  private static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
-  {
-    var attributeLists = context.Node switch
-    {
-        MethodDeclarationSyntax methodDeclaration => methodDeclaration.AttributeLists,
-        LocalFunctionStatementSyntax localFunction => localFunction.AttributeLists,
-        _ => throw new Exception("Expected a method declaration or function declaration")
-    };
-
-    foreach (var attributeListSyntax in attributeLists)
-    {
-      foreach (var attribute in attributeListSyntax.Attributes)
-      {
-        var imSymbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
-
-        if (imSymbol == null) continue;
-        var fullNameOfNamespace = imSymbol.ToString();
-
-        if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
-          return true;
-      }
-    }
-
-    return false;
   }
 
   private static readonly Func<SyntaxNode, bool> IsLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
