@@ -3,13 +3,11 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTest;
 
 public class TryCatchTests
 {
@@ -41,7 +39,7 @@ public class TryCatchTests
         }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InTryOrCatch)
-        .WithLocation(12, 34)
+        .WithLocation(16, 21)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -75,7 +73,7 @@ public class TryCatchTests
         }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InTryOrCatch)
-        .WithLocation(13, 34)
+        .WithLocation(21, 21)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -217,7 +215,7 @@ public class TryCatchTests
         }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InTryOrCatch)
-        .WithLocation(12, 34)
+        .WithLocation(18, 25)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

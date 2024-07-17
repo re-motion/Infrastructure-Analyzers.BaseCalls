@@ -70,7 +70,7 @@ public class BasicAndMiscellaneousTests
         """;
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-        .WithLocation(14, 17)
+        .WithLocation(17, 9)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

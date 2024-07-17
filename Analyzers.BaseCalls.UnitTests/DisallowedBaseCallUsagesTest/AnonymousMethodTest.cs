@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu
 // SPDX-License-Identifier: MIT
-using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
-
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
-
+using System;
 using System.Threading.Tasks;
+using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
+
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.DisallowedBaseCallUsagesTest;
 
 public class AnonymousMethodsTests
 {
@@ -50,11 +50,11 @@ public class AnonymousMethodsTests
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(6, 25)
+                           .WithLocation(10, 21)
                            .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 33)
+                           .WithLocation(10, 21)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -96,11 +96,11 @@ public class AnonymousMethodsTests
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(6, 25)
+                           .WithLocation(8, 43)
                            .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 38)
+                           .WithLocation(8, 43)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -141,11 +141,11 @@ public class AnonymousMethodsTests
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(6, 25)
+                           .WithLocation(8, 51)
                            .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 42)
+                           .WithLocation(8, 51)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -170,17 +170,17 @@ public class AnonymousMethodsTests
 
     var expected = new[]
                    {
+
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .WithLocation(10, 48),
+
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .WithLocation(10, 48),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(6, 25),
-
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 38),
-
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(10, 42),
+                           .WithLocation(10, 48),
                    };
 
 
@@ -211,11 +211,11 @@ public class AnonymousMethodsTests
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(6, 25)
+                           .WithLocation(12, 25)
                            .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 33)
+                           .WithLocation(12, 25)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

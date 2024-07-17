@@ -36,7 +36,7 @@ public static class CSharpAnalyzerVerifier<TAnalyzer>
                        (solution, id) =>
                        {
                          var project = solution.GetProject(id);
-                         project = project
+                         project = project!
                              .AddMetadataReference(MetadataReference.CreateFromFile(contextAssemblyLocation));
                          return project.Solution;
                        }

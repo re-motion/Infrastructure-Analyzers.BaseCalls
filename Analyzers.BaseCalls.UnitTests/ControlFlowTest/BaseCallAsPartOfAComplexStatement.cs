@@ -3,13 +3,11 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTest;
 
 public class BaseCallAsPartOfAComplexStatement
 {
@@ -186,7 +184,7 @@ public class BaseCallAsPartOfAComplexStatement
         }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
-        .WithLocation(12, 33)
+        .WithLocation(15, 24)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

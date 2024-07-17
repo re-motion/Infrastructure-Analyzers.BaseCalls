@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: (c) RUBICON IT GmbH, www.rubicon.eu
 // SPDX-License-Identifier: MIT
-using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
-
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
-
+using System;
 using System.Threading.Tasks;
+using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
+
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.DisallowedBaseCallUsagesTest;
 
 public class LocalFunctionTest
 {
@@ -47,12 +47,12 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(4, 29)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InLocalFunction)
-                           .WithLocation(6, 21)
+                           .WithLocation(8, 25),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .WithLocation(8, 25)
+                           .WithArguments("Test"),
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -81,12 +81,12 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(4, 29)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InLocalFunction)
-                           .WithLocation(6, 21)
+                           .WithLocation(10, 29),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .WithLocation(10, 29)
+                           .WithArguments("Test"),
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -115,14 +115,14 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .WithLocation(10, 25),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .WithLocation(10, 25),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(4, 25),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
-                           .WithLocation(6, 17),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
-                           .WithLocation(8, 21)
+                           .WithLocation(10, 25),
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -150,12 +150,12 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(4, 29)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InLocalFunction)
-                           .WithLocation(6, 21)
+                           .WithLocation(10, 29),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .WithLocation(10, 29)
+                           .WithArguments("Test"),
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -187,12 +187,12 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(4, 29)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InLocalFunction)
-                           .WithLocation(11, 21)
+                           .WithLocation(13, 25),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .WithLocation(13, 25)
+                           .WithArguments("Test"),
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

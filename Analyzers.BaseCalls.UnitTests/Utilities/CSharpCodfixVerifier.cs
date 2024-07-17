@@ -38,7 +38,7 @@ public static class CSharpCodeFixVerifier<TAnalyzer, TCodeFixProvider>
                        (solution, id) =>
                        {
                          var project = solution.GetProject(id);
-                         project = project
+                         project = project!
                              .AddMetadataReference(MetadataReference.CreateFromFile(contextAssemblyLocation));
                          return project.Solution;
                        }

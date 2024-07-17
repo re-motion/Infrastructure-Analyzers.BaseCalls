@@ -3,13 +3,11 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.DisallowedBaseCallUsagesTest;
 
 public class BaseCallInNonOverridingMethodTest
 {
@@ -63,7 +61,7 @@ public class BaseCallInNonOverridingMethodTest
             }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-        .WithLocation(11, 29)
+        .WithLocation(13, 21)
         .WithArguments("NonOverridingMethod");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

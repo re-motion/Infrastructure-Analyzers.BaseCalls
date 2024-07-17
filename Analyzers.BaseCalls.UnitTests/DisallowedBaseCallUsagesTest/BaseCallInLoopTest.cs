@@ -3,13 +3,10 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
-using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.DisallowedBaseCallUsagesTest;
 
 public class BaseCallInLoopTests
 {
@@ -37,7 +34,7 @@ public class BaseCallInLoopTests
         }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InLoop)
-        .WithLocation(12, 34)
+        .WithLocation(16, 21)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -75,7 +72,7 @@ public class BaseCallInLoopTests
         """;
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InLoop)
-        .WithLocation(14, 26)
+        .WithLocation(20, 15)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -155,7 +152,7 @@ public class BaseCallInLoopTests
         """;
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InLoop)
-        .WithLocation(14, 26)
+        .WithLocation(21, 15)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -202,7 +199,7 @@ public class BaseCallInLoopTests
         }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InLoop)
-        .WithLocation(14, 34)
+        .WithLocation(22, 29)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }

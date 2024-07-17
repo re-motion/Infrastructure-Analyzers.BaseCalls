@@ -3,13 +3,11 @@
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTest;
 
 public class ComplexBranchesTest
 {
@@ -425,7 +423,7 @@ public class ComplexBranchesTest
         """;
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
-        .WithLocation(23, 24)
+        .WithLocation(43, 9)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -691,7 +689,7 @@ public class DerivedClass : BaseClass
 }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
-        .WithLocation(24, 26)
+        .WithLocation(39, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
