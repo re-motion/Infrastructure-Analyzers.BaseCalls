@@ -3,22 +3,21 @@
 
 using System;
 using System.Threading.Tasks;
+using Microsoft;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Xunit;
+using Verifier = Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities.CSharpCodeFixVerifier<Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallAnalyzer, Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCodeFixProvider>;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 public class CodeFixTest
 {
-  [Fact(Skip = "test does not work")]
-  //[Obsolete("Obsolete")]
+  [Fact]
   public async Task YourCodeFix_FixesIssue ()
   {
-    var test = new CSharpCodeFixTest<BaseCallAnalyzer, BaseCallCodeFixProvider, XUnitVerifier>
-               {
-                   TestCode = @"
+    const string TestCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public abstract class BaseClass
@@ -37,8 +36,8 @@ public class DerivedClass : BaseClass
         int b = 7;
         //base.Test();
     }
-}",
-                   FixedCode = @"
+}";
+    const string FixedCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public abstract class BaseClass
@@ -58,16 +57,10 @@ public class DerivedClass : BaseClass
         int b = 7;
         //base.Test();
     }
-}",
-               };
-
-    test.ExpectedDiagnostics.Add(
-        CSharpCodeFixVerifier<BaseCallAnalyzer, BaseCallCodeFixProvider, XUnitVerifier>
-            .Diagnostic(BaseCallAnalyzer.NoBaseCall)
-            .WithLocation(14, 5)
-            .WithArguments("Test"));
+}";
 
 
-    await test.RunAsync();
+    var expected = Verifier.Diagnostic(BaseCallAnalyzer.NoBaseCall).WithLocation(15, 26);
+    await Verifier.VerifyCodeFixAsync(TestCode, expected, FixedCode);
   }
 }
