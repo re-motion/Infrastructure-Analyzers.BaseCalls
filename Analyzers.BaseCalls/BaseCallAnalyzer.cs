@@ -271,7 +271,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     if (nodeToCheck == null)
       return false;
 
-
+    var semanticModel = context.SemanticModel;
     foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
     {
       var node = (context.Node as MethodDeclarationSyntax)!;
@@ -290,6 +290,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       */
       if (!isMixin)
       {
+        //for simple lambdas, etc. (bodies with only one statement)
         if (childNode is InvocationExpressionSyntax invocationExpressionSyntax)
         {
           invocationExpressionNode = invocationExpressionSyntax;
@@ -301,22 +302,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             );
             return true;
           }
-
           continue;
         }
 
         var expressionStatementNode = childNode as ExpressionStatementSyntax;
         invocationExpressionNode = expressionStatementNode?.Expression as InvocationExpressionSyntax;
         simpleMemberAccessExpressionNode = invocationExpressionNode?.Expression as MemberAccessExpressionSyntax;
-        var baseExpressionSyntax = simpleMemberAccessExpressionNode?.Expression as BaseExpressionSyntax;
-
-        if (baseExpressionSyntax == null) continue;
+        if (simpleMemberAccessExpressionNode?.Expression is not BaseExpressionSyntax) continue;
       }
       else
       {
-        var nextIdentifierText = (((childNode as InvocationExpressionSyntax)?.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax)?.Identifier.Text;
-        if (nextIdentifierText is not "Next")
-          continue;
+        var nextIdentifier = ((childNode as InvocationExpressionSyntax)?.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax;
+
+        //check if it is the correct identifier
+        var identifierName = nextIdentifier?.Identifier.Text;
+        if (identifierName is not "Next") continue;
+
+        var originalDefinition = semanticModel.GetSymbolInfo(nextIdentifier!).Symbol?.OriginalDefinition.ToDisplayString();
+        if (originalDefinition is not ("Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next")) continue;
 
         invocationExpressionNode = childNode as InvocationExpressionSyntax;
         simpleMemberAccessExpressionNode = invocationExpressionNode?.Expression as MemberAccessExpressionSyntax;
@@ -339,7 +342,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       var numberOfParameters = parameters.Count;
       var typesOfParameters = parameters.Select(
           param =>
-              context.SemanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
+              semanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
 
 
       //Method signature of BaseCall
@@ -348,10 +351,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       var numberOfArguments = arguments.Count;
       var typesOfArguments = arguments.Select(
           arg =>
-              context.SemanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
+              semanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
 
 
-      //check if it's really a basecall
+      //comparing method signature and method signature of BaseCall
       if (nameOfCalledMethod.Equals(methodName)
           && numberOfParameters == numberOfArguments
           && typesOfParameters.Length == typesOfArguments.Length
