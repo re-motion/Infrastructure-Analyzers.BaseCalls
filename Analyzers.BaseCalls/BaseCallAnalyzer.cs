@@ -872,8 +872,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     {
       switch (childNode)
       {
-        case AnonymousMethodExpressionSyntax anonymousMethodfound:
-          anonymousMethod = anonymousMethodfound;
+        case AnonymousMethodExpressionSyntax anonymousMethodFound:
+          anonymousMethod = anonymousMethodFound;
           return true;
         case SimpleLambdaExpressionSyntax simpleLambdaExpressionSyntax:
           anonymousMethod = simpleLambdaExpressionSyntax;
