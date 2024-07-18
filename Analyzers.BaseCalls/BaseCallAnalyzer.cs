@@ -176,8 +176,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (!BaseCallCheckShouldHappen(context)) return;
 
+    var isMixin = IsMixin(context);
+
     // method is empty
-    if (node.Body == null && node.ExpressionBody == null)
+    if (node.Body == null && node.ExpressionBody == null || !ContainsBaseOrNextCall(context, node, false, isMixin, out _))
     {
       //location of the squigglies (Method Name)
       var squiggliesLocation = Location.Create(
@@ -189,7 +191,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
 
     // normal, overriding methods
-    var isMixin = IsMixin(context);
     var (_, diagnostic) = BaseCallCheckerRecursive(context, node, new NumberOfBaseCalls(0), isMixin);
 
     if (diagnostic == null) return;
@@ -302,6 +303,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             );
             return true;
           }
+
           continue;
         }
 
@@ -333,7 +335,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       );
 
 
-      if (!mustBeCorrect) return true;
+      if (!mustBeCorrect)
+        return true;
 
 
       //Method signature
@@ -346,7 +349,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       //Method signature of BaseCall
-      var nameOfCalledMethod = simpleMemberAccessExpressionNode!.Name.Identifier.Text;
+      var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
       var arguments = invocationExpressionNode.ArgumentList.Arguments;
       var numberOfArguments = arguments.Count;
       var typesOfArguments = arguments.Select(
@@ -783,6 +786,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           }
         }
 
+        else if (s_isUsingStatement(childNode))
+        {
+          var childNodesOfUsingBlock = ((UsingStatementSyntax)childNode).Statement.ChildNodes();
+          if (LoopOverChildNodes(childNodesOfUsingBlock, numberOfBaseCallsLocal, diagnostic, out result))
+            return true;
+          numberOfBaseCallsLocal = result.numberOfBaseCalls;
+        }
+
         else if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location4))
         {
           numberOfBaseCallsLocal.Increment();
@@ -858,4 +869,5 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly Func<SyntaxNode, bool> s_isTry = node => node is TryStatementSyntax;
   private static readonly Func<SyntaxNode, bool> s_isNormalSwitch = node => node is SwitchStatementSyntax;
   private static readonly Func<SyntaxNode, bool> s_isSwitchExpression = node => node is SwitchExpressionSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isUsingStatement = node => node is UsingStatementSyntax;
 }
