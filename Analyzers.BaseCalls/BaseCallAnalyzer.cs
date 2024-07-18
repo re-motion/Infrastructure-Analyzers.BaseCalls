@@ -164,9 +164,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var node = (MethodDeclarationSyntax)context.Node;
 
-    if (!BaseCallCheckShouldHappen(context)) return;
+    if (!BaseCallCheckShouldHappen(context, out var isMixin)) return;
 
-    var isMixin = IsMixin(context);
 
     // method is empty
     if (node.Body == null && node.ExpressionBody == null || !ContainsBaseOrNextCall(context, node, false, isMixin, out _))
@@ -192,7 +191,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     {
       var localFunction = context.Node as LocalFunctionStatementSyntax;
 
-      if (BaseCallCheckShouldHappen(context))
+      if (BaseCallCheckShouldHappen(context, out _))
         return;
 
 
@@ -223,37 +222,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (ContainsBaseOrNextCall(context, body, false, false, out var location))
       context.ReportDiagnostic(Diagnostic.Create(InAnonymousMethod, location));
-  }
-
-  private static bool IsMixin (SyntaxNodeAnalysisContext context)
-  {
-    var node = context.Node;
-
-    while (true)
-    {
-      var classDeclaration = node.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();
-
-      var baseTypeSyntax = classDeclaration?.BaseList?.Types.FirstOrDefault()?.Type;
-      if (baseTypeSyntax == null)
-        return false;
-
-      if (context.SemanticModel.GetSymbolInfo(baseTypeSyntax).Symbol != null && context.SemanticModel.GetSymbolInfo(baseTypeSyntax).Symbol is INamedTypeSymbol baseTypeSymbol)
-      {
-        var baseClassFullName = baseTypeSymbol.ToDisplayString();
-
-        if (baseClassFullName.StartsWith("Remotion.Mixins.Mixin<") && baseClassFullName.EndsWith(">"))
-          return true;
-
-        // Recursively check the base class
-        if (baseTypeSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is ClassDeclarationSyntax baseClassDeclaration)
-        {
-          node = baseClassDeclaration;
-          continue;
-        }
-      }
-
-      return false;
-    }
   }
 
   private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool mustBeCorrect, bool isMixin, out Location? location)
@@ -367,28 +335,40 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   /// Checks if the Method overrides and if there is an attribute preventing the baseCall check.
   /// </summary>
   /// <param name="context">Context is there to call other methods that need this parameter</param>
+  /// <param name="isMixin">true, if the override is in context of a Mixin</param>
   /// <returns>true, if a baseCall check should happen</returns>
   /// <exception cref="ArgumentOutOfRangeException">the attribute BaseCall should only have 3 members</exception>
   /// <exception cref="Exception">This method should not throw any other exceptions</exception>
-  private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context)
+  private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context, out bool isMixin)
   {
-    if (context.Node is LocalFunctionStatementSyntax) return HasIgnoreBaseCallCheckAttribute();
+    isMixin = false;
+    if (context.Node is LocalFunctionStatementSyntax)
+      return HasIgnoreBaseCallCheckAttribute();
 
     var node = (MethodDeclarationSyntax)context.Node;
+
+    var doesOverride = DoesOverride(out isMixin);
 
     //check for IgnoreBaseCallCheck attribute
     if (HasIgnoreBaseCallCheckAttribute()) return false;
 
 
-    if (!DoesOverride())
+    if (!doesOverride)
     {
       if (ContainsBaseOrNextCall(context, node, false, false, out var location))
         context.ReportDiagnostic(Diagnostic.Create(InNonOverridingMethod, location));
       return false;
     }
 
-    if (IsMixin(context))
-      return ((PredefinedTypeSyntax)node.ReturnType).Keyword.IsKind(SyntaxKind.VoidKeyword);
+    if (isMixin)
+    {
+      if (node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax)
+      {
+        return predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
+      }
+
+      return false;
+    }
 
 
     //get overridden method
@@ -421,7 +401,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
     }
 
-    return ((PredefinedTypeSyntax)node.ReturnType).Keyword.IsKind(SyntaxKind.VoidKeyword);
+    if (node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax2)
+    {
+      return predefinedTypeSyntax2.Keyword.IsKind(SyntaxKind.VoidKeyword);
+    }
+
+    return false;
 
 
     BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
@@ -482,11 +467,16 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       return false;
     }
 
-    bool DoesOverride ()
+    bool DoesOverride (out bool isMixin)
     {
-      if (node.Modifiers.Any(SyntaxKind.OverrideKeyword)) return true;
+      if (node.Modifiers.Any(SyntaxKind.OverrideKeyword))
+      {
+        isMixin = false;
+        return true;
+      }
 
-      if (!IsMixin(context)) return false;
+      isMixin = IsMixin();
+      if (!isMixin) return false;
 
       // for mixins -> check if there is an [OverrideTarget] attribute
       SyntaxList<AttributeListSyntax> attributeLists;
@@ -508,6 +498,37 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       return false;
+
+      bool IsMixin ()
+      {
+        var contextNode = context.Node;
+
+        while (true)
+        {
+          var classDeclaration = contextNode.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+
+          var baseTypeSyntax = classDeclaration?.BaseList?.Types.FirstOrDefault()?.Type;
+          if (baseTypeSyntax == null)
+            return false;
+
+          if (context.SemanticModel.GetSymbolInfo(baseTypeSyntax).Symbol != null && context.SemanticModel.GetSymbolInfo(baseTypeSyntax).Symbol is INamedTypeSymbol baseTypeSymbol)
+          {
+            var baseClassFullName = baseTypeSymbol.ToDisplayString();
+
+            if (baseClassFullName.StartsWith("Remotion.Mixins.Mixin<") && baseClassFullName.EndsWith(">"))
+              return true;
+
+            // Recursively check the base class
+            if (baseTypeSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is ClassDeclarationSyntax baseClassDeclaration)
+            {
+              contextNode = baseClassDeclaration;
+              continue;
+            }
+          }
+
+          return false;
+        }
+      }
     }
   }
 
