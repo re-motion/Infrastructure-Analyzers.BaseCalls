@@ -146,10 +146,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.MethodDeclaration);
 
-    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.AnonymousMethodExpression);
-    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.SimpleLambdaExpression);
-    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.ParenthesizedLambdaExpression);
-
     context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.LocalFunctionStatement);
 
 
@@ -159,20 +155,14 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static void AnalyzeMethod (SyntaxNodeAnalysisContext context)
   {
-    var generalNode = context.Node;
-
-    //also checks if there are baseCalls in Anonymous Methods and local functions
-    switch (generalNode)
+    //also checks if there are baseCalls in local functions
+    if (context.Node is LocalFunctionStatementSyntax)
     {
-      case AnonymousMethodExpressionSyntax or SimpleLambdaExpressionSyntax or ParenthesizedLambdaExpressionSyntax:
-        AnalyzeAnonymousMethod();
-        return;
-      case LocalFunctionStatementSyntax:
-        AnalyzeLocalFunction();
-        return;
+      AnalyzeLocalFunction();
+      return;
     }
 
-    var node = (MethodDeclarationSyntax)generalNode;
+    var node = (MethodDeclarationSyntax)context.Node;
 
     if (!BaseCallCheckShouldHappen(context)) return;
 
@@ -198,24 +188,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     context.ReportDiagnostic(diagnostic);
     return;
 
-
-    void AnalyzeAnonymousMethod ()
-    {
-      var anonymousMethod = context.Node as AnonymousFunctionExpressionSyntax;
-      if (anonymousMethod == null)
-        return;
-
-      SyntaxNode body;
-
-      if (anonymousMethod is SimpleLambdaExpressionSyntax simpleLambda)
-        body = simpleLambda.Body;
-      else
-        body = anonymousMethod.Body;
-
-      if (ContainsBaseOrNextCall(context, body, false, false, out var location))
-        context.ReportDiagnostic(Diagnostic.Create(InAnonymousMethod, location));
-    }
-
     void AnalyzeLocalFunction ()
     {
       var localFunction = context.Node as LocalFunctionStatementSyntax;
@@ -233,6 +205,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       if (ContainsBaseOrNextCall(context, body, false, false, out var location))
         context.ReportDiagnostic(Diagnostic.Create(InLocalFunction, location));
     }
+  }
+
+  private static void AnalyzeAnonymousMethod (SyntaxNodeAnalysisContext context, SyntaxNode? node)
+  {
+    SyntaxNode body;
+
+    if (node is SimpleLambdaExpressionSyntax simpleLambda)
+      body = simpleLambda.Body;
+    else if (node is AnonymousMethodExpressionSyntax anonymousMethod)
+      body = anonymousMethod.Body;
+    else if (node is ParenthesizedLambdaExpressionSyntax parenthesizedLambdaExpressionSyntax)
+      body = parenthesizedLambdaExpressionSyntax.Body;
+    else
+      return;
+
+
+    if (ContainsBaseOrNextCall(context, body, false, false, out var location))
+      context.ReportDiagnostic(Diagnostic.Create(InAnonymousMethod, location));
   }
 
   private static bool IsMixin (SyntaxNodeAnalysisContext context)
@@ -803,6 +793,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             break;
           }
         }
+
+        if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
+        {
+          AnalyzeAnonymousMethod(context, anonymousMethod);
+        }
       }
 
       if (diagnostic != null) //found a diagnostic
@@ -870,4 +865,26 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static readonly Func<SyntaxNode, bool> s_isNormalSwitch = node => node is SwitchStatementSyntax;
   private static readonly Func<SyntaxNode, bool> s_isSwitchExpression = node => node is SwitchExpressionSyntax;
   private static readonly Func<SyntaxNode, bool> s_isUsingStatement = node => node is UsingStatementSyntax;
+
+  private static bool ContainsAnonymousMethod (SyntaxNode node, out SyntaxNode? anonymousMethod)
+  {
+    foreach (var childNode in node.DescendantNodesAndSelf())
+    {
+      switch (childNode)
+      {
+        case AnonymousMethodExpressionSyntax anonymousMethodfound:
+          anonymousMethod = anonymousMethodfound;
+          return true;
+        case SimpleLambdaExpressionSyntax simpleLambdaExpressionSyntax:
+          anonymousMethod = simpleLambdaExpressionSyntax;
+          return true;
+        case ParenthesizedLambdaExpressionSyntax parenthesizedLambdaExpressionSyntax:
+          anonymousMethod = parenthesizedLambdaExpressionSyntax;
+          return true;
+      }
+    }
+
+    anonymousMethod = null;
+    return false;
+  }
 }

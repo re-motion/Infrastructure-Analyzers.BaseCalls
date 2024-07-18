@@ -13,18 +13,30 @@ public class AnonymousMethodsTests
   public async Task AnonymousMethod_WithoutBaseCall_ReportsNothing ()
   {
     const string text = @"
-        using System;
+using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Action action = delegate()
-                {
-                    Console.WriteLine(""Hello, World!"");
-                };
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    var action = delegate()
+    {
+        Console.WriteLine(""Hello, World!"");
+    };
+    base.Test();
+  }
+}";
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text);
   }
@@ -33,74 +45,106 @@ public class AnonymousMethodsTests
   public async Task AnonymousMethod_WithBaseCall_ReportsDiagnostic ()
   {
     const string text = @"
-        using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Action action = delegate()
-                {
-                    base.ToString();
-                };
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    var action = delegate()
+    {
+      base.Test();
+    };
+    action();
+  }
+}";
 
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(10, 21)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(10, 21)
+                           .WithLocation(20, 7)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
-  public async Task SimpleLambda_WithoutBaseCall_ReportsNothing ()
+  public async Task SimpleLambda_WithoutBaseCall_ReportsDiagnostic ()
   {
     const string text = @"
-        using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+using System;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Action<int> action = x => Console.WriteLine(x);
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    Action<int> action = x => Console.WriteLine(x);
+  }
+}";
 
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text);
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(17, 24)
+                   };
+
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
   public async Task SimpleLambda_WithBaseCall_ReportsDiagnostic ()
   {
     const string text = @"
-        using System;
+using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Action<int> action = x => base.ToString();
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    Action<int> action = x => base.Test();
+  }
+}";
 
 
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(8, 43)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 43)
+                           .WithLocation(19, 31)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -110,42 +154,68 @@ public class AnonymousMethodsTests
   public async Task ParenthesizedLambda_WithoutBaseCall_ReportsNothing ()
   {
     const string text = @"
-        using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+using System;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Func<int, int> func = (x) => { return x * 2; };
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    Func<int, int> func = (x) => { return x * 2; };
+  }
+}";
 
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text);
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(17, 24)
+                   };
+
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
   [Fact]
   public async Task ParenthesizedLambda_WithBaseCall_ReportsDiagnostic ()
   {
     const string text = @"
-        using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+using System;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Func<int, string> func = (x) => { base.ToString(); return x.ToString(); };
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual int Test ()
+  {
+    return 5;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override int Test()
+  {
+    Func<int, int> func = (x) => { base.Test(); return base.Test(); };
+    return 5;
+  }
+}";
 
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(8, 51)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(8, 51)
+                           .WithLocation(19, 36)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -155,32 +225,36 @@ public class AnonymousMethodsTests
   public async Task NestedAnonymousMethods_WithBaseCallInInner_ReportsDiagnostic ()
   {
     const string text = @"
-        using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
 
-        public class TestClass
-        {
-            public void TestMethod()
-            {
-                Action outerAction = delegate()
-                {
-                    Action innerAction = () => base.ToString();
-                };
-            }
-        }";
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    var outerAction = delegate()
+    {
+        var innerAction = () => base.Test();
+    };
+
+  }
+}";
 
     var expected = new[]
                    {
 
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(10, 48),
-
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(10, 48),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(10, 48),
+                           .WithLocation(20, 33),
                    };
 
 
@@ -191,31 +265,37 @@ public class AnonymousMethodsTests
   public async Task AnonymousMethod_WithBaseCallInConditional_ReportsDiagnostic ()
   {
     const string text = @"
-        using System;
+using Remotion.Infrastructure.Analyzers.BaseCalls;
 
-        public class TestClass
+namespace ConsoleApp1;
+        
+public abstract class BaseClass
+{
+  [BaseCallCheck(BaseCall.IsMandatory)]
+  public virtual void Test ()
+  {
+    return;
+  }
+}
+public class DerivedClass : BaseClass
+{
+  public override void Test()
+  {
+    var action = delegate()
+    {
+        if (true)
         {
-            public void TestMethod()
-            {
-                Action action = delegate()
-                {
-                    if (true)
-                    {
-                        base.ToString();
-                    }
-                };
-            }
-        }";
+            base.Test();
+        }
+    };
+  }
+}";
 
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
-                           .WithLocation(12, 25)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(12, 25)
+                           .WithLocation(22, 13)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
