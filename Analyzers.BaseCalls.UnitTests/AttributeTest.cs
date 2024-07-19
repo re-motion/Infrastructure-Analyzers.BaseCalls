@@ -19,6 +19,7 @@ public class AttributeTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
         public abstract class BaseClass
         {
@@ -40,7 +41,7 @@ public class AttributeTests
         """;
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
-        .WithLocation(14, 26)
+        .WithLocation(15, 26)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -51,6 +52,7 @@ public class AttributeTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
         public abstract class BaseClass
         {
@@ -80,6 +82,7 @@ public class AttributeTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
         public abstract class BaseClass
         {
@@ -116,6 +119,7 @@ public class AttributeTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
         public abstract class BaseClass
         {
@@ -144,7 +148,7 @@ public class AttributeTests
         }
         """;
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
-        .WithLocation(22, 26)
+        .WithLocation(23, 26)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -155,6 +159,7 @@ public class AttributeTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
         public abstract class BaseClass
         {

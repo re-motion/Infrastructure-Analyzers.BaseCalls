@@ -23,6 +23,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Analyzers.BaseCalls\Analyzers.BaseCalls.csproj"/>
+        <ProjectReference Include="..\Analyzers.BaseCalls.Attribute\Analyzers.BaseCalls.Attribute.csproj"/>
     </ItemGroup>
 
 </Project>
