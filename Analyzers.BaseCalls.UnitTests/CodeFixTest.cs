@@ -19,7 +19,7 @@ public class CodeFixTest
   {
     const string TestCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 public abstract class BaseClass
 {
     [BaseCallCheck(BaseCall.IsMandatory)]
@@ -39,7 +39,7 @@ public class DerivedClass : BaseClass
 }";
     const string FixedCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 public abstract class BaseClass
 {
     [BaseCallCheck(BaseCall.IsMandatory)]

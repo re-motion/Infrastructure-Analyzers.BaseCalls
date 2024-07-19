@@ -17,7 +17,7 @@ public class ComplexBranchesTest
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -55,7 +55,7 @@ public class ComplexBranchesTest
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -87,7 +87,7 @@ public class ComplexBranchesTest
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -158,7 +158,7 @@ public class ComplexBranchesTest
         using System;
         using System.Runtime.InteropServices.ComTypes;
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-                
+                using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         namespace ConsoleApp1;
                 
         public abstract class BaseClass
@@ -227,7 +227,7 @@ public class ComplexBranchesTest
         using System;
         using System.Runtime.InteropServices.ComTypes;
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-                
+                using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         namespace ConsoleApp1;
                 
         public abstract class BaseClass
@@ -298,7 +298,7 @@ public class ComplexBranchesTest
         using System;
         using System.Runtime.InteropServices.ComTypes;
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-                
+                using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         namespace ConsoleApp1;
                 
         public abstract class BaseClass
@@ -367,7 +367,7 @@ public class ComplexBranchesTest
         using System;
         using System.Runtime.InteropServices.ComTypes;
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-                
+                using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         namespace ConsoleApp1;
                 
         public abstract class BaseClass
@@ -435,7 +435,7 @@ public class ComplexBranchesTest
         using System;
 using System.Runtime.InteropServices.ComTypes;
 using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
                 
 namespace ConsoleApp1;
 public abstract class BaseClass
@@ -483,7 +483,7 @@ public class DerivedClass : BaseClass
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -526,7 +526,7 @@ public class DerivedClass : BaseClass
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -562,7 +562,7 @@ public class DerivedClass : BaseClass
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -615,7 +615,7 @@ public class DerivedClass : BaseClass
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -650,7 +650,7 @@ public class DerivedClass : BaseClass
         using System;
 using System.Runtime.InteropServices.ComTypes;
 using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
 namespace ConsoleApp1;
 

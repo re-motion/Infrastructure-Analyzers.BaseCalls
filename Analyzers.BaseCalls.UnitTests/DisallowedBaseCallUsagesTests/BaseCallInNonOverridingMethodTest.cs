@@ -17,7 +17,7 @@ public class BaseCallInNonOverridingMethodTest
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-
+        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
