@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-using System.Collections.Generic;
 using System.Linq;
+using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
@@ -164,7 +165,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var node = (MethodDeclarationSyntax)context.Node;
 
-    if (!BaseCallCheckShouldHappen(context, out var isMixin)) return;
+    if (!BaseCallCheckShouldHappen(context, out var isMixin)) 
+      return;
 
 
     // method is empty
@@ -175,7 +177,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           node.SyntaxTree,
           node.Identifier.Span
       );
-      context.ReportDiagnostic(Diagnostic.Create(NoBaseCall, squiggliesLocation));
+      ReportDiagnostic(context, Diagnostic.Create(NoBaseCall, squiggliesLocation));
       return;
     }
 
@@ -184,7 +186,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (diagnostic == null) return;
 
-    context.ReportDiagnostic(diagnostic);
+    ReportDiagnostic(context, diagnostic);
     return;
 
     void AnalyzeLocalFunction ()
@@ -202,7 +204,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       if (ContainsBaseOrNextCall(context, body, false, false, out var location))
-        context.ReportDiagnostic(Diagnostic.Create(InLocalFunction, location));
+        ReportDiagnostic(context, Diagnostic.Create(InLocalFunction, location));
     }
   }
 
@@ -221,7 +223,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     if (ContainsBaseOrNextCall(context, body, false, false, out var location))
-      context.ReportDiagnostic(Diagnostic.Create(InAnonymousMethod, location));
+      ReportDiagnostic(context, Diagnostic.Create(InAnonymousMethod, location));
   }
 
   private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool mustBeCorrect, bool isMixin, out Location? location)
@@ -324,7 +326,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         return true;
 
       //wrong basecall
-      context.ReportDiagnostic(Diagnostic.Create(WrongBaseCall, location));
+      ReportDiagnostic(context, Diagnostic.Create(WrongBaseCall, location));
       return true;
     }
 
@@ -356,27 +358,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     if (!doesOverride)
     {
       if (ContainsBaseOrNextCall(context, node, false, false, out var location))
-        context.ReportDiagnostic(Diagnostic.Create(InNonOverridingMethod, location));
+        ReportDiagnostic(context, Diagnostic.Create(InNonOverridingMethod, location));
       return false;
     }
+
+    var isVoid = node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax
+                 && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
 
     if (isMixin)
-    {
-      if (node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax)
-      {
-        return predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
-      }
-
-      return false;
-    }
+      return isVoid;
 
 
     //get overridden method
+
     var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
     var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
 
-    if (overriddenMethodAsNode != null && overriddenMethodAsNode.Modifiers.Any(SyntaxKind.AbstractKeyword))
-      return false;
+    if (overriddenMethodAsIMethodSymbol is { IsAbstract: true })
+      return isVoid;
 
     //check base method for attribute if it does not have one, the next base method will be checked
     while (overriddenMethodAsNode != null)
@@ -396,17 +395,18 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           throw new ArgumentOutOfRangeException();
       }
 
+
+      if (overriddenMethodAsIMethodSymbol is { IsVirtual: true })
+      {
+        break;
+      }
+
       //go one generation back
       overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
       overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
     }
 
-    if (node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax2)
-    {
-      return predefinedTypeSyntax2.Keyword.IsKind(SyntaxKind.VoidKeyword);
-    }
-
-    return false;
+    return isVoid;
 
 
     BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
@@ -431,9 +431,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       {
         switch (attributeDescription)
         {
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)":
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.Attribute.BaseCallCheckAttribute(BaseCall.IsOptional)":
             return BaseCall.IsOptional;
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)":
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.Attribute.BaseCallCheckAttribute(BaseCall.IsMandatory)":
             return BaseCall.IsMandatory;
         }
       }
@@ -459,7 +459,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (imSymbol == null) continue;
           var fullNameOfNamespace = imSymbol.ToString();
 
-          if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
+          if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.Attribute.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
             return true;
         }
       }
@@ -475,8 +475,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         return true;
       }
 
-      isMixin = IsMixin();
-      if (!isMixin) return false;
+      /*isMixin = IsMixin();
+      if (!isMixin) return false;*/
 
       // for mixins -> check if there is an [OverrideTarget] attribute
       SyntaxList<AttributeListSyntax> attributeLists;
@@ -491,44 +491,19 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       {
         var imSymbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
 
+
         if (imSymbol == null) continue;
         var fullNameOfNamespace = imSymbol.ToString();
 
-        if (fullNameOfNamespace.Equals("Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()")) return true;
-      }
-
-      return false;
-
-      bool IsMixin ()
-      {
-        var contextNode = context.Node;
-
-        while (true)
+        if (fullNameOfNamespace.Equals("Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()"))
         {
-          var classDeclaration = contextNode.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();
-
-          var baseTypeSyntax = classDeclaration?.BaseList?.Types.FirstOrDefault()?.Type;
-          if (baseTypeSyntax == null)
-            return false;
-
-          if (context.SemanticModel.GetSymbolInfo(baseTypeSyntax).Symbol != null && context.SemanticModel.GetSymbolInfo(baseTypeSyntax).Symbol is INamedTypeSymbol baseTypeSymbol)
-          {
-            var baseClassFullName = baseTypeSymbol.ToDisplayString();
-
-            if (baseClassFullName.StartsWith("Remotion.Mixins.Mixin<") && baseClassFullName.EndsWith(">"))
-              return true;
-
-            // Recursively check the base class
-            if (baseTypeSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is ClassDeclarationSyntax baseClassDeclaration)
-            {
-              contextNode = baseClassDeclaration;
-              continue;
-            }
-          }
-
-          return false;
+          isMixin = true;
+          return true;
         }
       }
+
+      isMixin = false;
+      return false;
     }
   }
 
@@ -907,5 +882,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     anonymousMethod = null;
     return false;
+  }
+
+  private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic diagnostic)
+  {
+    context.ReportDiagnostic(diagnostic);
   }
 }
