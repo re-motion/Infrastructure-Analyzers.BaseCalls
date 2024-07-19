@@ -9,15 +9,9 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System.Linq;
+using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
-
-internal enum BaseCall
-{
-  Default,
-  IsOptional,
-  IsMandatory
-}
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
