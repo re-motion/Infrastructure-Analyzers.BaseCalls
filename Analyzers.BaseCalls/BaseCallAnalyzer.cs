@@ -9,9 +9,15 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System.Linq;
-using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
+
+internal enum BaseCall
+{
+  Default,
+  IsOptional,
+  IsMandatory
+}
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
@@ -165,7 +171,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var node = (MethodDeclarationSyntax)context.Node;
 
-    if (!BaseCallCheckShouldHappen(context, out var isMixin)) 
+    if (!BaseCallCheckShouldHappen(context, out var isMixin))
       return;
 
 
@@ -235,6 +241,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var semanticModel = context.SemanticModel;
     foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
     {
+      //quick pre-check for more performance, most iterations will fail here
+      if (childNode is not (InvocationExpressionSyntax or ExpressionSyntax))
+        continue;
+
       var node = (context.Node as MethodDeclarationSyntax)!;
 
       InvocationExpressionSyntax? invocationExpressionNode;
