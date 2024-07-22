@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -375,14 +376,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     //get overridden method
 
     var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
-
-
-    if (overriddenMethodAsIMethodSymbol == null)
-    {
-      throw new Exception("overridden method is null"); //this should not happen
-    }
-
-
     var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
 
     if (overriddenMethodAsIMethodSymbol?.IsAbstract == true)
@@ -392,9 +385,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     while (overriddenMethodAsNode != null)
     {
       //check overridden method for BaseCallCheck attribute
-      var res = CheckForBaseCallCheckAttribute(overriddenMethodAsIMethodSymbol!);
-
-      switch (res)
+      switch (CheckForBaseCallCheckAttribute(overriddenMethodAsIMethodSymbol!))
       {
         case BaseCall.IsOptional:
           return false;
@@ -407,13 +398,20 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
 
-      if (overriddenMethodAsIMethodSymbol is { IsVirtual: true })
-      {
+      if (overriddenMethodAsIMethodSymbol is { IsVirtual: true } or { IsAbstract: true })
         break;
-      }
+
 
       //go one generation back
-      overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
+      try
+      {
+        overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
+      }
+      catch (ArgumentException)
+      {
+        return isVoid; //overriding method from something like System.Object (there won't be an attribute preventing the check)
+      }
+
       overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
     }
 
@@ -422,29 +420,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
     {
-      //mostly ChatGPT
-      var attributes = overriddenMethod.GetAttributes();
-      var attributeDescriptions = attributes.Select(
-          attr =>
-          {
-            var attributeClass = attr.AttributeClass;
-            var attributeNamespace = attributeClass?.ContainingNamespace.ToDisplayString();
-            object? valueOfEnumArgument = null;
-            if (attr.ConstructorArguments.Length > 0)
-              valueOfEnumArgument = attr.ConstructorArguments[0].Value;
-            if (valueOfEnumArgument != null)
-              return $"{attributeNamespace}.{attributeClass?.Name}(BaseCall.{Enum.GetName(typeof(BaseCall), valueOfEnumArgument)})";
-            return $"{attributeNamespace}.{attributeClass?.Name}";
-          }).ToList();
-
-
-      foreach (var attributeDescription in attributeDescriptions)
+      foreach (var attributeDescription in overriddenMethod.GetAttributes().Select(attr => attr.ToString()).ToList())
       {
         switch (attributeDescription)
         {
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)":
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(Remotion.Infrastructure.Analyzers.BaseCalls.BaseCall.IsOptional)":
             return BaseCall.IsOptional;
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)":
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(Remotion.Infrastructure.Analyzers.BaseCalls.BaseCall.IsMandatory)":
             return BaseCall.IsMandatory;
         }
       }
@@ -461,21 +443,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           _ => throw new Exception("Expected a method declaration or function declaration")
       };
 
-      foreach (var attributeListSyntax in attributeLists)
-      {
-        foreach (var attribute in attributeListSyntax.Attributes)
-        {
-          var imSymbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
-
-          if (imSymbol == null) continue;
-          var fullNameOfNamespace = imSymbol.ToString();
-
-          if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
-            return true;
-        }
-      }
-
-      return false;
+      return ContainsAttribute(attributeLists, "Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()");
     }
 
     bool DoesOverride (out bool isMixin)
@@ -493,25 +461,18 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       else
         throw new ArgumentException("Expected a method declaration");
 
+      var containsOverrideTargetAttribute = ContainsAttribute(attributeLists, "Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()");
+      isMixin = containsOverrideTargetAttribute;
+      return containsOverrideTargetAttribute;
+    }
 
-      foreach (var attributeListSyntax in attributeLists)
-      foreach (var attribute in attributeListSyntax.Attributes)
-      {
-        var imSymbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
-
-
-        if (imSymbol == null) continue;
-        var fullNameOfNamespace = imSymbol.ToString();
-
-        if (fullNameOfNamespace.Equals("Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()"))
-        {
-          isMixin = true;
-          return true;
-        }
-      }
-
-      isMixin = false;
-      return false;
+    bool ContainsAttribute (SyntaxList<AttributeListSyntax> attributeLists, string searchedFullNameOfNamespace)
+    {
+      return attributeLists.Any(
+          attributeListSyntax => attributeListSyntax.Attributes.Select(
+              attribute => context.SemanticModel.GetSymbolInfo(attribute).Symbol).OfType<ISymbol>().Select(
+              attributeSemanticModel => attributeSemanticModel.ToString()).Any(
+              attributeFullNameOfNamespace => attributeFullNameOfNamespace.Equals(searchedFullNameOfNamespace)));
     }
   }
 
