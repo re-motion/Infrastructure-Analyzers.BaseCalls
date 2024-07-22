@@ -4,8 +4,8 @@
         <OutputType>Library</OutputType>
         <TargetFramework>netstandard2.0</TargetFramework>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <AssemblyName>Remotion.Infrastructure.Analyzers.BaseCalls.Attribute</AssemblyName>
-        <RootNamespace>$(AssemblyName)</RootNamespace>
+        <AssemblyName>Remotion.Infrastructure.Analyzers.BaseCalls.Attributes</AssemblyName>
+        <RootNamespace>Remotion.Infrastructure.Analyzers.BaseCalls</RootNamespace>
     </PropertyGroup>
 
 </Project>

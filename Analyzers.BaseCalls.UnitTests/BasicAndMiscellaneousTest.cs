@@ -99,7 +99,7 @@ public class BasicAndMiscellaneousTests
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
+
   [Fact]
   public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing ()
   {
@@ -113,17 +113,15 @@ public class BasicAndMiscellaneousTests
                 
         public abstract class BaseClass
         {
-          public abstract int x ();
+          public abstract void x ();
         }
                 
         public class DerivedClass : BaseClass
         {
 
-          public override int x ()
+          public override void x ()
           {
-
             //base.x();
-            return 5;
           }
         }";
 
@@ -131,5 +129,62 @@ public class BasicAndMiscellaneousTests
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
-  
+  [Fact]
+  public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing2 ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass<T>
+        {
+          public abstract void x (T a);
+        }
+                
+        public class DerivedClass : BaseClass<string>
+        {
+
+          public override void x (string a)
+          {
+            //base.x();
+          }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing3 ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+using System.Collections.Generic;
+
+                
+        namespace ConsoleApp1;
+                
+        public abstract class BaseClass<T>
+        {
+          public abstract void x (List<T> a);
+        }
+                
+        public class DerivedClass : BaseClass<string>
+        {
+
+          public override void x (List<string> a)
+          {
+            //base.x();
+          }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 }

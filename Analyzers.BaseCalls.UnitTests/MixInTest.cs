@@ -13,7 +13,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 public class MixInTests
 {
-    [Fact]
+  [Fact]
   public async Task MixinNormalNextCall ()
   {
     const string text = @"

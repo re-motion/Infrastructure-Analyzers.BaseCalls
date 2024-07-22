@@ -15,7 +15,7 @@ public class BaseCallInLoopTests
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+             
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -45,7 +45,7 @@ public class BaseCallInLoopTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+             
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -83,7 +83,7 @@ public class BaseCallInLoopTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+             
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -121,7 +121,7 @@ public class BaseCallInLoopTests
     const string text =
         """
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+             
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
@@ -162,7 +162,7 @@ public class BaseCallInLoopTests
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
-        using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+             
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]

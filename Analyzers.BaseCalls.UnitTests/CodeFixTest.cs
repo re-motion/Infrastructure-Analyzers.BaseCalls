@@ -8,7 +8,9 @@ using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using Microsoft.CodeAnalysis.Testing.Verifiers;
 using Xunit;
-using Verifier = Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities.CSharpCodeFixVerifier<Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallAnalyzer, Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCodeFixProvider>;
+using Verifier =
+    Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities.CSharpCodeFixVerifier<Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallAnalyzer,
+        Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCodeFixProvider>;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
@@ -19,7 +21,7 @@ public class CodeFixTest
   {
     const string TestCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
-using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+
 public abstract class BaseClass
 {
     [BaseCallCheck(BaseCall.IsMandatory)]
@@ -39,7 +41,7 @@ public class DerivedClass : BaseClass
 }";
     const string FixedCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
-using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
+
 public abstract class BaseClass
 {
     [BaseCallCheck(BaseCall.IsMandatory)]

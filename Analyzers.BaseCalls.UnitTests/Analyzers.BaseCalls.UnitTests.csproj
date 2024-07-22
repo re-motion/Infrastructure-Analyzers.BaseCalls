@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
 
         <IsPackable>false</IsPackable>
@@ -24,7 +24,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Analyzers.BaseCalls\Analyzers.BaseCalls.csproj"/>
-        <ProjectReference Include="..\Analyzers.BaseCalls.Attribute\Analyzers.BaseCalls.Attribute.csproj"/>
+<!--        <ProjectReference Include="..\Analyzers.BaseCalls.Attributes\Analyzers.BaseCalls.Attributes.csproj" />-->
     </ItemGroup>
 
 </Project>

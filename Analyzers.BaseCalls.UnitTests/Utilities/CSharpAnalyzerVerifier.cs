@@ -6,7 +6,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
-using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;

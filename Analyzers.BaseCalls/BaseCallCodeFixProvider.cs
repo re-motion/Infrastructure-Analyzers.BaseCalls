@@ -53,7 +53,7 @@ public class BaseCallCodeFixProvider : CodeFixProvider
 
     //update syntax root
     var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-    
+
     if (root == null)
       return document;
 

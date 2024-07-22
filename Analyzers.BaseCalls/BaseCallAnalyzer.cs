@@ -9,7 +9,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using System.Linq;
-using Remotion.Infrastructure.Analyzers.BaseCalls.Attribute;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
@@ -236,7 +235,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
     {
       //quick pre-check for more performance, most iterations will fail here
-      if (childNode is not (InvocationExpressionSyntax or ExpressionSyntax))
+      if (childNode is not (InvocationExpressionSyntax or ExpressionStatementSyntax))
         continue;
 
       var node = (context.Node as MethodDeclarationSyntax)!;
@@ -376,10 +375,18 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     //get overridden method
 
     var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
+
+
+    if (overriddenMethodAsIMethodSymbol == null)
+    {
+      throw new Exception("overridden method is null"); //this should not happen
+    }
+
+
     var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
 
-    if (overriddenMethodAsIMethodSymbol is { IsAbstract: true })
-      return isVoid;
+    if (overriddenMethodAsIMethodSymbol?.IsAbstract == true)
+      return false;
 
     //check base method for attribute if it does not have one, the next base method will be checked
     while (overriddenMethodAsNode != null)
@@ -435,9 +442,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       {
         switch (attributeDescription)
         {
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.Attribute.BaseCallCheckAttribute(BaseCall.IsOptional)":
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsOptional)":
             return BaseCall.IsOptional;
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.Attribute.BaseCallCheckAttribute(BaseCall.IsMandatory)":
+          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(BaseCall.IsMandatory)":
             return BaseCall.IsMandatory;
         }
       }
@@ -463,7 +470,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           if (imSymbol == null) continue;
           var fullNameOfNamespace = imSymbol.ToString();
 
-          if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.Attribute.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
+          if (fullNameOfNamespace.Equals("Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()"))
             return true;
         }
       }
@@ -478,9 +485,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         isMixin = false;
         return true;
       }
-
-      /*isMixin = IsMixin();
-      if (!isMixin) return false;*/
 
       // for mixins -> check if there is an [OverrideTarget] attribute
       SyntaxList<AttributeListSyntax> attributeLists;

@@ -3,13 +3,13 @@
 
 using System;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.Attribute
+namespace Remotion.Infrastructure.Analyzers.BaseCalls
 {
   public enum BaseCall
   {
     Default,
     IsOptional,
-    IsMandatory 
+    IsMandatory
   }
 
   /// <summary>
@@ -27,10 +27,12 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.Attribute
   [AttributeUsage(AttributeTargets.Method)]
   public class BaseCallCheckAttribute : System.Attribute
   {
-    public BaseCallCheckAttribute(BaseCall mode)
+    public BaseCallCheckAttribute (BaseCall mode)
     {
     }
-    public BaseCallCheckAttribute() : this(BaseCall.IsMandatory)
+
+    public BaseCallCheckAttribute ()
+        : this(BaseCall.IsMandatory)
     {
     }
   }

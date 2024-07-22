@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzers.BaseCalls", "Anal
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzers.BaseCalls.UnitTests", "Analyzers.BaseCalls.UnitTests\Analyzers.BaseCalls.UnitTests.csproj", "{927276A0-BF2C-45AB-B7BC-89DF5C1C664B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzers.BaseCalls.Attribute", "Analyzers.BaseCalls.Attribute\Analyzers.BaseCalls.Attribute.csproj", "{85A84683-DB61-4C83-B808-F973408F2F6F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzers.BaseCalls.Attributes", "Analyzers.BaseCalls.Attributes\Analyzers.BaseCalls.Attributes.csproj", "{85A84683-DB61-4C83-B808-F973408F2F6F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
