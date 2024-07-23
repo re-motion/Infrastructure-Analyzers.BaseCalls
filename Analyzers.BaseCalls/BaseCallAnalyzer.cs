@@ -247,82 +247,46 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       ReportDiagnostic(context, Diagnostic.Create(InAnonymousMethod, location));
   }
 
-  private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool mustBeCorrect, bool isMixin, out Location? location)
+  private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool baseCallMustBeCorrect, bool isMixin, out Location? location)
   {
-    location = null;
-    if (nodeToCheck == null)
+    if (nodeToCheck is null)
+    {
+      location = null;
       return false;
+    }
 
-    var semanticModel = context.SemanticModel;
     foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
     {
-      //quick pre-check for more performance, most iterations will fail here
-      if (childNode is not (InvocationExpressionSyntax or ExpressionStatementSyntax))
+      if (childNode is not InvocationExpressionSyntax invocationExpressionSyntax)
         continue;
 
-      var node = (context.Node as MethodDeclarationSyntax)!;
-
-      InvocationExpressionSyntax? invocationExpressionNode;
-      MemberAccessExpressionSyntax? simpleMemberAccessExpressionNode;
-
-
-      //trying to cast the childNode to an BaseExpressionSyntax, example Syntax tree:
-      /*
-       MethodDeclaration
-        Body: Block
-          Expression: InvocationExpression
-            Expression: SimpleMemberAccessExpression
-              Expression: BaseExpression
-      */
-      if (!isMixin)
+      if (isMixin)
       {
-        //for simple lambdas, etc. (bodies with only one statement)
-        if (childNode is InvocationExpressionSyntax invocationExpressionSyntax)
-        {
-          invocationExpressionNode = invocationExpressionSyntax;
-          if (invocationExpressionNode.Expression is MemberAccessExpressionSyntax { Expression: BaseExpressionSyntax })
-          {
-            location = Location.Create(
-                invocationExpressionNode.SyntaxTree,
-                invocationExpressionNode.Span
-            );
-            return true;
-          }
-
+        var nextIdentifier = (invocationExpressionSyntax.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax;
+        if (!(invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax
+              || nextIdentifier?.Identifier.Text is "Next"
+              && context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString()
+                  is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next")) //check if it is the correct identifier
           continue;
-        }
-
-        var expressionStatementNode = childNode as ExpressionStatementSyntax;
-        invocationExpressionNode = expressionStatementNode?.Expression as InvocationExpressionSyntax;
-        simpleMemberAccessExpressionNode = invocationExpressionNode?.Expression as MemberAccessExpressionSyntax;
-        if (simpleMemberAccessExpressionNode?.Expression is not BaseExpressionSyntax) continue;
       }
       else
       {
-        var nextIdentifier = ((childNode as InvocationExpressionSyntax)?.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax;
-
-        //check if it is the correct identifier
-        var identifierName = nextIdentifier?.Identifier.Text;
-        if (identifierName is not "Next") continue;
-
-        var originalDefinition = semanticModel.GetSymbolInfo(nextIdentifier!).Symbol?.OriginalDefinition.ToDisplayString();
-        if (originalDefinition is not ("Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next")) continue;
-
-        invocationExpressionNode = childNode as InvocationExpressionSyntax;
-        simpleMemberAccessExpressionNode = invocationExpressionNode?.Expression as MemberAccessExpressionSyntax;
-
-        if (simpleMemberAccessExpressionNode == null) continue;
+        if ((invocationExpressionSyntax.Expression as MemberAccessExpressionSyntax)?.Expression is not BaseExpressionSyntax)
+          continue;
       }
 
+
       location = Location.Create(
-          invocationExpressionNode!.SyntaxTree,
-          invocationExpressionNode.Span
+          invocationExpressionSyntax.SyntaxTree,
+          invocationExpressionSyntax.Span
       );
 
 
-      if (!mustBeCorrect)
+      if (!baseCallMustBeCorrect)
         return true;
 
+      var semanticModel = context.SemanticModel;
+      var node = (MethodDeclarationSyntax)context.Node;
 
       //Method signature
       var methodName = node.Identifier.Text;
@@ -334,8 +298,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       //Method signature of BaseCall
-      var nameOfCalledMethod = simpleMemberAccessExpressionNode.Name.Identifier.Text;
-      var arguments = invocationExpressionNode.ArgumentList.Arguments;
+      var nameOfCalledMethod = ((MemberAccessExpressionSyntax)invocationExpressionSyntax.Expression).Name.Identifier.Text;
+      var arguments = invocationExpressionSyntax.ArgumentList.Arguments;
       var numberOfArguments = arguments.Count;
       var typesOfArguments = arguments.Select(
           arg =>
@@ -350,11 +314,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
         return true;
 
-      //wrong basecall
       ReportDiagnostic(context, Diagnostic.Create(WrongBaseCall, location));
       return false;
     }
 
+    location = null;
     return false;
   }
 
