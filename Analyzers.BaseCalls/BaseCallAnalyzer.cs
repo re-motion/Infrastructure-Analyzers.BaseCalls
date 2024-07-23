@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -135,12 +134,27 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       true,
       s_descriptionInInNonOverridingMethod);
 
+  private const string c_diagnosticIdError = "RMBCA0000";
+  private static readonly LocalizableString s_titleError = "Error";
+  private static readonly LocalizableString s_messageError = "Error: {0}";
+  private static readonly LocalizableString s_descriptionError = "Error.";
+
+  private static readonly DiagnosticDescriptor s_error = new(
+      c_diagnosticIdError,
+      s_titleError,
+      s_messageError,
+      c_category,
+      c_severity,
+      true,
+      s_descriptionError);
+
+
   //list of Rules
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
   [
       NoBaseCall, InLoop, MultipleBaseCalls, WrongBaseCall,
       InTryOrCatch, InNonOverridingMethod, InLocalFunction,
-      InAnonymousMethod
+      InAnonymousMethod, s_error
   ];
 
   public override void Initialize (AnalysisContext context)
@@ -156,55 +170,62 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static void AnalyzeMethod (SyntaxNodeAnalysisContext context)
   {
-    //also checks if there are baseCalls in local functions
-    if (context.Node is LocalFunctionStatementSyntax)
+    try
     {
-      AnalyzeLocalFunction();
-      return;
-    }
+      //also checks if there are baseCalls in local functions
+      if (context.Node is LocalFunctionStatementSyntax)
+      {
+        AnalyzeLocalFunction();
+        return;
+      }
 
-    var node = (MethodDeclarationSyntax)context.Node;
+      var node = (MethodDeclarationSyntax)context.Node;
 
-    if (!BaseCallCheckShouldHappen(context, out var isMixin))
-      return;
-
-
-    // method is empty
-    if (node.Body == null && node.ExpressionBody == null || !ContainsBaseOrNextCall(context, node, false, isMixin, out _))
-    {
-      //location of the squigglies (Method Name)
-      var squiggliesLocation = Location.Create(
-          node.SyntaxTree,
-          node.Identifier.Span
-      );
-      ReportDiagnostic(context, Diagnostic.Create(NoBaseCall, squiggliesLocation));
-      return;
-    }
-
-    // normal, overriding methods
-    var (_, diagnostic) = BaseCallCheckerRecursive(context, node, new NumberOfBaseCalls(0), isMixin);
-
-    if (diagnostic == null) return;
-
-    ReportDiagnostic(context, diagnostic);
-    return;
-
-    void AnalyzeLocalFunction ()
-    {
-      var localFunction = context.Node as LocalFunctionStatementSyntax;
-
-      if (BaseCallCheckShouldHappen(context, out _))
+      if (!BaseCallCheckShouldHappen(context, out var isMixin))
         return;
 
 
-      if (localFunction == null)
+      // method is empty
+      if (node.Body == null && node.ExpressionBody == null || !ContainsBaseOrNextCall(context, node, false, isMixin, out _))
+      {
+        //location of the squigglies (Method Name)
+        var squiggliesLocation = Location.Create(
+            node.SyntaxTree,
+            node.Identifier.Span
+        );
+        ReportDiagnostic(context, Diagnostic.Create(NoBaseCall, squiggliesLocation));
         return;
+      }
 
-      SyntaxNode body = localFunction.Body!;
+      // normal, overriding methods
+      var (_, diagnostic) = BaseCallCheckerRecursive(context, node, new NumberOfBaseCalls(0), isMixin);
+
+      if (diagnostic == null) return;
+
+      ReportDiagnostic(context, diagnostic);
+      return;
+
+      void AnalyzeLocalFunction ()
+      {
+        var localFunction = context.Node as LocalFunctionStatementSyntax;
+
+        if (BaseCallCheckShouldHappen(context, out _))
+          return;
 
 
-      if (ContainsBaseOrNextCall(context, body, false, false, out var location))
-        ReportDiagnostic(context, Diagnostic.Create(InLocalFunction, location));
+        if (localFunction == null)
+          return;
+
+        SyntaxNode body = localFunction.Body!;
+
+
+        if (ContainsBaseOrNextCall(context, body, false, false, out var location))
+          ReportDiagnostic(context, Diagnostic.Create(InLocalFunction, location));
+      }
+    }
+    catch (Exception ex)
+    {
+      context.ReportDiagnostic(Diagnostic.Create(s_error, context.Node.GetLocation(), ex.ToString()));
     }
   }
 
@@ -331,7 +352,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       //wrong basecall
       ReportDiagnostic(context, Diagnostic.Create(WrongBaseCall, location));
-      return true;
+      return false;
     }
 
     return false;
@@ -361,8 +382,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (!doesOverride)
     {
-      if (ContainsBaseOrNextCall(context, node, false, false, out var location))
+      if (node.Modifiers.Any(SyntaxKind.NewKeyword))
+        ContainsBaseOrNextCall(context, node, true, false, out _);
+
+      else if (ContainsBaseOrNextCall(context, node, false, false, out var location))
         ReportDiagnostic(context, Diagnostic.Create(InNonOverridingMethod, location));
+
       return false;
     }
 
@@ -374,18 +399,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //get overridden method
+    var currentMethod = context.SemanticModel.GetDeclaredSymbol(node);
 
-    var overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(node)?.OverriddenMethod;
-    var overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
-
-    if (overriddenMethodAsIMethodSymbol?.IsAbstract == true)
-      return false;
-
-    //check base method for attribute if it does not have one, the next base method will be checked
-    while (overriddenMethodAsNode != null)
+    while (currentMethod != null)
     {
-      //check overridden method for BaseCallCheck attribute
-      switch (CheckForBaseCallCheckAttribute(overriddenMethodAsIMethodSymbol!))
+      if (currentMethod.IsAbstract)
+        return false;
+
+      var baseCallCheck = CheckForBaseCallCheckAttribute(currentMethod);
+      switch (baseCallCheck)
       {
         case BaseCall.IsOptional:
           return false;
@@ -397,22 +419,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           throw new ArgumentOutOfRangeException();
       }
 
-
-      if (overriddenMethodAsIMethodSymbol is { IsVirtual: true } or { IsAbstract: true })
+      if (currentMethod.IsVirtual || currentMethod.IsAbstract)
         break;
 
-
-      //go one generation back
-      try
-      {
-        overriddenMethodAsIMethodSymbol = context.SemanticModel.GetDeclaredSymbol(overriddenMethodAsNode)?.OverriddenMethod;
-      }
-      catch (ArgumentException)
-      {
-        return isVoid; //overriding method from something like System.Object (there won't be an attribute preventing the check)
-      }
-
-      overriddenMethodAsNode = overriddenMethodAsIMethodSymbol?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax;
+      currentMethod = currentMethod.OverriddenMethod;
     }
 
     return isVoid;
