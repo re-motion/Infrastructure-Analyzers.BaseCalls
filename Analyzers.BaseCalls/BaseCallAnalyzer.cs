@@ -268,6 +268,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               && context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString()
                   is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next")) //check if it is the correct identifier
           continue;
+        if (invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax)
+          continue;
       }
       else
       {
