@@ -37,6 +37,7 @@ public class WrongBaseCallsTest
             {
                 int b = 7;
                 base.WrongTest();
+                base.Test();
             }
         }
 
@@ -89,6 +90,10 @@ public class WrongBaseCallsTest
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.WrongBaseCall)
                            .WithLocation(21, 9)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(18, 26)
                            .WithArguments("Test")
                    };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -165,6 +170,10 @@ public class WrongBaseCallsTest
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.WrongBaseCall)
                            .WithLocation(21, 9)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(18, 26)
                            .WithArguments("Test")
                    };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

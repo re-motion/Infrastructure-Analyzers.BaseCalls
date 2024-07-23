@@ -125,6 +125,7 @@ public class DerivedClass : Mixin<System.Object, IParent>
   {
     Console.WriteLine(""test1"");
     Next.OverridableMethod2();
+    Next.OverridableMethod();  
   }
 }
 
