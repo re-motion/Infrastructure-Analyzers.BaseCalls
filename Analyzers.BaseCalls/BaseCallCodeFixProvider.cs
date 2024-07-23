@@ -44,21 +44,33 @@ public class BaseCallCodeFixProvider : CodeFixProvider
 
   private async Task<Document> AddIgnoreAttributeAsync (Document document, MethodDeclarationSyntax methodDeclaration, CancellationToken cancellationToken)
   {
-    //create new attribute
-    var attribute = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("IgnoreBaseCallCheck"));
-    var attributeList = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(attribute));
-
-    //add attribute to method
-    var newMethodDeclaration = methodDeclaration.AddAttributeLists(attributeList);
-
-    //update syntax root
     var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-
     if (root == null)
       return document;
 
-    var newRoot = root.ReplaceNode(methodDeclaration, newMethodDeclaration);
+    // Add attribute to method
+    var attribute = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("IgnoreBaseCallCheck"));
+    var attributeList = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(attribute));
+    var newMethodDeclaration = methodDeclaration.AddAttributeLists(attributeList);
+    root = root.ReplaceNode(methodDeclaration, newMethodDeclaration);
 
-    return document.WithSyntaxRoot(newRoot);
+
+    // Check if the namespace is already imported
+    if (root is not CompilationUnitSyntax compilationUnit)
+      return document;
+
+    var hasNamespace = compilationUnit.Usings
+        .Any(u => u.Name.ToString() == "Remotion.Infrastructure.Analyzers.BaseCalls");
+
+    if (!hasNamespace)
+    {
+      // add using directive
+      var usingDirective = SyntaxFactory.UsingDirective(
+          SyntaxFactory.ParseName("Remotion.Infrastructure.Analyzers.BaseCalls"));
+      compilationUnit = compilationUnit.AddUsings(usingDirective);
+      root = compilationUnit;
+    }
+
+    return document.WithSyntaxRoot(root);
   }
 }

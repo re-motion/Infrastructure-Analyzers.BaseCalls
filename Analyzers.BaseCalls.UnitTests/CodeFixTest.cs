@@ -17,7 +17,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 public class CodeFixTest
 {
   [Fact]
-  public async Task YourCodeFix_FixesIssue ()
+  public async Task AddsIgnoreCheckAttribute ()
   {
     const string TestCode = @"
 using Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -45,6 +45,56 @@ using Remotion.Infrastructure.Analyzers.BaseCalls;
 public abstract class BaseClass
 {
     [BaseCallCheck(BaseCall.IsMandatory)]
+    public virtual void Test ()
+    {
+        int a = 5;
+    }
+}
+
+public class DerivedClass : BaseClass
+{
+    [IgnoreBaseCallCheck]
+    public override void Test ()
+    {
+        int b = 7;
+        //base.Test();
+    }
+}";
+
+
+    var expected = Verifier.Diagnostic(BaseCallAnalyzer.NoBaseCall).WithLocation(15, 26);
+    await Verifier.VerifyCodeFixAsync(TestCode, expected, FixedCode);
+  }
+  
+  [Fact]
+  public async Task AddsIgnoreCheckAttribute_And_UsingDirective ()
+  {
+    const string TestCode = @"
+
+
+public abstract class BaseClass
+{
+
+    public virtual void Test ()
+    {
+        int a = 5;
+    }
+}
+
+public class DerivedClass : BaseClass
+{
+    public override void Test ()
+    {
+        int b = 7;
+        //base.Test();
+    }
+}";
+    const string FixedCode = @"
+using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+public abstract class BaseClass
+{
+
     public virtual void Test ()
     {
         int a = 5;
