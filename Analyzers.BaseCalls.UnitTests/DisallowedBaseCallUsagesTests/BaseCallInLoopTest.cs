@@ -19,7 +19,7 @@ public class BaseCallInLoopTests
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual void Test() { }
+            public virtual void Test() { return; }
         }
         
         public class DerivedClass : BaseClass
@@ -166,7 +166,7 @@ public class BaseCallInLoopTests
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual void Test() { }
+            public virtual void Test() { return; }
         }
         
         public class DerivedClass : BaseClass

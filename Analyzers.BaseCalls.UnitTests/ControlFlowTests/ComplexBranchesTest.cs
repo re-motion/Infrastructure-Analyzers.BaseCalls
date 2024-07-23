@@ -125,7 +125,7 @@ public class ComplexBranchesTest
     const string text = @"
                 class BaseClass
                 {
-                    public virtual void Method() { }
+                    public virtual void Method() { return; }
                 }
 
                 class DerivedClass : BaseClass
@@ -487,7 +487,7 @@ public class DerivedClass : BaseClass
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual void Test() { }
+            public virtual void Test() { return; }
         }
         
         public class DerivedClass : BaseClass
@@ -530,7 +530,7 @@ public class DerivedClass : BaseClass
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual void Test() { }
+            public virtual void Test() { return; }
         }
         
         public class DerivedClass : BaseClass
@@ -619,7 +619,7 @@ public class DerivedClass : BaseClass
         public abstract class BaseClass
         {
             [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual void Test(int depth) { }
+            public virtual void Test(int depth) { return; }
         }
         
         public class DerivedClass : BaseClass

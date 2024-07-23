@@ -81,7 +81,10 @@ public class BasicAndMiscellaneousTests
     const string text = @"
                 class BaseClass
                 {
-                    public virtual void Method() { }
+                    public virtual void Method() 
+                    { 
+                      return;
+                    }
                 }
 
                 class DerivedClass : BaseClass
@@ -95,7 +98,7 @@ public class BasicAndMiscellaneousTests
                 }";
 
     var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
-        .WithLocation(12, 25)
+        .WithLocation(15, 25)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
@@ -130,7 +133,7 @@ public class BasicAndMiscellaneousTests
   }
 
   [Fact]
-  public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing2 ()
+  public async Task NoBaseCall_Overriding_Abstract_Method_With_Generics_ReportsNothing ()
   {
     const string text = @"
         using System;
@@ -159,7 +162,7 @@ public class BasicAndMiscellaneousTests
   }
 
   [Fact]
-  public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing3 ()
+  public async Task NoBaseCall_Overriding_Abstract_Method_With_Complex_Generics_ReportsNothing3 ()
   {
     const string text = @"
         using System;
