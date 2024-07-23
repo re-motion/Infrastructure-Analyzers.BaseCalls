@@ -89,8 +89,7 @@ public class DerivedClass : BaseClass
         //base.Test();
     }
 }";
-    const string FixedCode = @"
-using Remotion.Infrastructure.Analyzers.BaseCalls;
+    const string FixedCode = @"using Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public abstract class BaseClass
 {
