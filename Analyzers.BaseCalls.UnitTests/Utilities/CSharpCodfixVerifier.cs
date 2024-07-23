@@ -42,7 +42,8 @@ public static class CSharpCodeFixVerifier<TAnalyzer, TCodeFixProvider>
                              .AddMetadataReference(MetadataReference.CreateFromFile(contextAssemblyLocation));
                          return project.Solution;
                        }
-                   }
+                   },
+                   FixedCode = resultingCode
                };
     test.ExpectedDiagnostics.Add(expected);
 
@@ -57,5 +58,5 @@ public static class CSharpCodeFixVerifier<TAnalyzer, TCodeFixProvider>
         Path.Combine("ref", "net8.0"));
   }
 
-  private class Test : CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>;
+  private class Test : CSharpCodeFixTest<TAnalyzer, BaseCallCodeFixProvider, DefaultVerifier>;
 }
