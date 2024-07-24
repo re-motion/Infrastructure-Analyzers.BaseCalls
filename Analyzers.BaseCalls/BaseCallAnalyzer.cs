@@ -182,7 +182,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       var node = (MethodDeclarationSyntax)context.Node;
 
       if (!BaseCallCheckShouldHappen(context, out var isMixin))
+      {
         return;
+      }
 
 
       // method is empty
@@ -200,7 +202,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       // normal, overriding methods
       var (_, diagnostic) = BaseCallCheckerRecursive(context, node, new NumberOfBaseCalls(0), isMixin);
 
-      if (diagnostic == null) return;
+      if (diagnostic == null)
+      {
+        return;
+      }
 
       ReportDiagnostic(context, diagnostic);
       return;
@@ -210,21 +215,29 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         var localFunction = context.Node as LocalFunctionStatementSyntax;
 
         if (BaseCallCheckShouldHappen(context, out _))
+        {
           return;
+        }
 
 
         if (localFunction == null)
+        {
           return;
+        }
 
         SyntaxNode body = localFunction.Body!;
 
 
         if (ContainsBaseOrNextCall(context, body, false, false, out var location))
+        {
           ReportDiagnostic(context, Diagnostic.Create(InLocalFunction, location));
+        }
       }
     }
     catch (Exception ex)
     {
+      //for debugging, comment return and uncomment reportDiagnostic
+      //return;
       context.ReportDiagnostic(Diagnostic.Create(s_error, context.Node.GetLocation(), ex.ToString()));
     }
   }
@@ -233,18 +246,26 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     SyntaxNode body;
 
-    if (node is SimpleLambdaExpressionSyntax simpleLambda)
-      body = simpleLambda.Body;
-    else if (node is AnonymousMethodExpressionSyntax anonymousMethod)
-      body = anonymousMethod.Body;
-    else if (node is ParenthesizedLambdaExpressionSyntax parenthesizedLambdaExpressionSyntax)
-      body = parenthesizedLambdaExpressionSyntax.Body;
-    else
-      return;
+    switch (node)
+    {
+      case SimpleLambdaExpressionSyntax simpleLambda:
+        body = simpleLambda.Body;
+        break;
+      case AnonymousMethodExpressionSyntax anonymousMethod:
+        body = anonymousMethod.Body;
+        break;
+      case ParenthesizedLambdaExpressionSyntax parenthesizedLambdaExpressionSyntax:
+        body = parenthesizedLambdaExpressionSyntax.Body;
+        break;
+      default:
+        return;
+    }
 
 
     if (ContainsBaseOrNextCall(context, body, false, false, out var location))
+    {
       ReportDiagnostic(context, Diagnostic.Create(InAnonymousMethod, location));
+    }
   }
 
   private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool baseCallMustBeCorrect, bool isMixin, out Location? location)
@@ -258,7 +279,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
     {
       if (childNode is not InvocationExpressionSyntax invocationExpressionSyntax)
+      {
         continue;
+      }
 
       if (isMixin)
       {
@@ -267,14 +290,21 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               || nextIdentifier?.Identifier.Text is "Next"
               && context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString()
                   is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next")) //check if it is the correct identifier
+        {
           continue;
+        }
+
         if (invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax)
+        {
           continue;
+        }
       }
       else
       {
         if ((invocationExpressionSyntax.Expression as MemberAccessExpressionSyntax)?.Expression is not BaseExpressionSyntax)
+        {
           continue;
+        }
       }
 
 
@@ -285,7 +315,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       if (!baseCallMustBeCorrect)
+      {
         return true;
+      }
 
       var semanticModel = context.SemanticModel;
       var node = (MethodDeclarationSyntax)context.Node;
@@ -314,7 +346,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           && typesOfParameters.Length == typesOfArguments.Length
           && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
               .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
+      {
         return true;
+      }
 
       ReportDiagnostic(context, Diagnostic.Create(WrongBaseCall, location));
       return false;
@@ -336,23 +370,32 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     isMixin = false;
     if (context.Node is LocalFunctionStatementSyntax)
+    {
       return HasIgnoreBaseCallCheckAttribute();
+    }
 
     var node = (MethodDeclarationSyntax)context.Node;
 
     var doesOverride = DoesOverride(out isMixin);
 
     //check for IgnoreBaseCallCheck attribute
-    if (HasIgnoreBaseCallCheckAttribute()) return false;
+    if (HasIgnoreBaseCallCheckAttribute())
+    {
+      return false;
+    }
 
 
     if (!doesOverride)
     {
       if (node.Modifiers.Any(SyntaxKind.NewKeyword))
+      {
         ContainsBaseOrNextCall(context, node, true, false, out _);
+      }
 
       else if (ContainsBaseOrNextCall(context, node, false, false, out var location))
+      {
         ReportDiagnostic(context, Diagnostic.Create(InNonOverridingMethod, location));
+      }
 
       return false;
     }
@@ -361,7 +404,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
                  && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
 
     if (isMixin)
+    {
       return isVoid;
+    }
 
 
     //get overridden method
@@ -370,7 +415,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     while (currentMethod != null)
     {
       if (currentMethod.IsAbstract)
+      {
         return false;
+      }
 
       var baseCallCheck = CheckForBaseCallCheckAttribute(currentMethod);
       switch (baseCallCheck)
@@ -386,7 +433,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       if (currentMethod.IsVirtual || currentMethod.IsAbstract)
+      {
         break;
+      }
 
       currentMethod = currentMethod.OverriddenMethod;
     }
@@ -433,9 +482,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       // for mixins -> check if there is an [OverrideTarget] attribute
       SyntaxList<AttributeListSyntax> attributeLists;
       if (context.Node is MethodDeclarationSyntax methodDeclaration)
+      {
         attributeLists = methodDeclaration.AttributeLists;
+      }
       else
+      {
         throw new ArgumentException("Expected a method declaration");
+      }
 
       var containsOverrideTargetAttribute = ContainsAttribute(attributeLists, "Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()");
       isMixin = containsOverrideTargetAttribute;
@@ -532,19 +585,27 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       {
         var methodDeclaration = (MethodDeclarationSyntax)node;
         if (methodDeclaration.Body != null)
+        {
           childNodes = methodDeclaration.Body.ChildNodes();
+        }
 
         else if (methodDeclaration.ExpressionBody != null)
+        {
           childNodes = methodDeclaration.ExpressionBody.ChildNodes();
+        }
 
         else
+        {
           throw new NullReferenceException("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause (method does not have a body)");
+        }
       }
 
 
       //loop over childNodes
       if (LoopOverChildNodes(childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
+      {
         return baseCallCheckerRecursive;
+      }
 
 
       //go to next else branch
@@ -552,7 +613,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       ifStatementSyntax = elseClauseSyntax?.Statement as IfStatementSyntax;
 
       if (elseClauseSyntax != null && ifStatementSyntax == null)
+      {
         hasElseWithNoIf = true;
+      }
     } while (elseClauseSyntax != null);
 
 
@@ -560,13 +623,18 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     listOfResults.RemoveAll(item => item.Equals(new NumberOfBaseCalls(returns)));
 
     if (listOfResults.Count == 0)
+    {
       return hasElseWithNoIf ? (new NumberOfBaseCalls(returns), null) : (new NumberOfBaseCalls(0), null);
+    }
 
     numberOfBaseCalls.Min = listOfResults[0].Min;
     numberOfBaseCalls.Max = listOfResults[0].Max;
 
     //when the if does not have an else with no if in it, it is not guaranteed that it will go through a branch
-    if (!hasElseWithNoIf) numberOfBaseCalls.Min = 0;
+    if (!hasElseWithNoIf)
+    {
+      numberOfBaseCalls.Min = 0;
+    }
 
     foreach (var numberOfBaseCallsListItem in listOfResults)
     {
@@ -580,7 +648,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     DiagnosticDescriptor? GetDiagnosticDescription (NumberOfBaseCalls numberOfBaseCallsLocal)
     {
-      if (numberOfBaseCallsLocal.Max >= 2) return MultipleBaseCalls;
+      if (numberOfBaseCallsLocal.Max >= 2)
+      {
+        return MultipleBaseCalls;
+      }
+
       return numberOfBaseCallsLocal.Min == 0 ? NoBaseCall : null;
     }
 
@@ -648,7 +720,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             {
               tryHasBaseCall = true;
               if (location == null)
+              {
                 location = outLocation;
+              }
+
               break;
             }
           }
@@ -663,7 +738,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               {
                 catchHasBaseCall = true;
                 if (location == null)
+                {
                   location = outLocation;
+                }
+
                 break;
               }
             }
@@ -683,12 +761,17 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
           var childNodesOfFinallyBlock = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
           if (LoopOverChildNodes(childNodesOfFinallyBlock, numberOfBaseCallsLocal, diagnostic, out result))
+          {
             return true;
+          }
+
           numberOfBaseCallsLocal = result.numberOfBaseCalls;
         }
 
         else if (s_isLoop(childNode) && ContainsBaseOrNextCall(context, childNode, false, isMixin, out var locationInLoop))
+        {
           diagnostic = Diagnostic.Create(InLoop, locationInLoop);
+        }
 
         else if (s_isNormalSwitch(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
         {
@@ -697,7 +780,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
               .All(switchSectionSyntax => ContainsBaseOrNextCall(context, switchSectionSyntax, true, isMixin, out _));
 
           if (allContainBaseCall)
+          {
             numberOfBaseCallsLocal.Increment();
+          }
           else
           {
             diagnostic = Diagnostic.Create(NoBaseCall, Location.Create(context.Node.SyntaxTree, ((SwitchStatementSyntax)childNode).SwitchKeyword.Span));
@@ -709,7 +794,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           var allContainBaseCall = ((SwitchExpressionSyntax)childNode).Arms.All(n => ContainsBaseOrNextCall(context, n, true, isMixin, out _));
 
           if (allContainBaseCall)
+          {
             numberOfBaseCallsLocal.Increment();
+          }
           else
           {
             diagnostic = Diagnostic.Create(NoBaseCall, Location.Create(context.Node.SyntaxTree, ((SwitchStatementSyntax)childNode).SwitchKeyword.Span));
@@ -721,7 +808,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         {
           var childNodesOfUsingBlock = ((UsingStatementSyntax)childNode).Statement.ChildNodes();
           if (LoopOverChildNodes(childNodesOfUsingBlock, numberOfBaseCallsLocal, diagnostic, out result))
+          {
             return true;
+          }
+
+
           numberOfBaseCallsLocal = result.numberOfBaseCalls;
         }
 
