@@ -283,25 +283,32 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         continue;
       }
 
+      if (invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax memberAccessExpressionSyntax)
+      {
+        continue;
+      }
+
       if (isMixin)
       {
-        var nextIdentifier = (invocationExpressionSyntax.Expression as MemberAccessExpressionSyntax)?.Expression as IdentifierNameSyntax;
-        if (!(invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax
-              || nextIdentifier?.Identifier.Text is "Next"
-              && context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString()
-                  is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next")) //check if it is the correct identifier
+        var nextIdentifier = memberAccessExpressionSyntax.Expression as IdentifierNameSyntax;
+
+        var isCorrectIdentifier = false;
+
+        if (nextIdentifier?.Identifier.Text == "Next")
         {
-          continue;
+          var symbolDefinition = context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString();
+
+          isCorrectIdentifier = symbolDefinition is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next";
         }
 
-        if (invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax)
+        if (!isCorrectIdentifier)
         {
           continue;
         }
       }
       else
       {
-        if ((invocationExpressionSyntax.Expression as MemberAccessExpressionSyntax)?.Expression is not BaseExpressionSyntax)
+        if (memberAccessExpressionSyntax.Expression is not BaseExpressionSyntax)
         {
           continue;
         }
@@ -332,7 +339,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
       //Method signature of BaseCall
-      var nameOfCalledMethod = ((MemberAccessExpressionSyntax)invocationExpressionSyntax.Expression).Name.Identifier.Text;
+      var nameOfCalledMethod = memberAccessExpressionSyntax.Name.Identifier.Text;
       var arguments = invocationExpressionSyntax.ArgumentList.Arguments;
       var numberOfArguments = arguments.Count;
       var typesOfArguments = arguments.Select(
