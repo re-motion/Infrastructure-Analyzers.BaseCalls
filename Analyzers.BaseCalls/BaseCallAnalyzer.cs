@@ -200,7 +200,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       // normal, overriding methods
-      var (_, diagnostic) = BaseCallCheckerRecursive(context, node, new NumberOfBaseCalls(0), isMixin);
+      var diagnostic = BaseCallCheckerInitializer(context, isMixin);
 
       if (diagnostic == null)
       {
@@ -266,103 +266,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     {
       ReportDiagnostic(context, Diagnostic.Create(InAnonymousMethod, location));
     }
-  }
-
-  private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool baseCallMustBeCorrect, bool isMixin, out Location? location)
-  {
-    if (nodeToCheck is null)
-    {
-      location = null;
-      return false;
-    }
-
-    foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
-    {
-      if (childNode is not InvocationExpressionSyntax invocationExpressionSyntax)
-      {
-        continue;
-      }
-
-      if (invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax memberAccessExpressionSyntax)
-      {
-        continue;
-      }
-
-      if (isMixin)
-      {
-        var nextIdentifier = memberAccessExpressionSyntax.Expression as IdentifierNameSyntax;
-
-        var isCorrectIdentifier = false;
-
-        if (nextIdentifier?.Identifier.Text == "Next")
-        {
-          var symbolDefinition = context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString();
-
-          isCorrectIdentifier = symbolDefinition is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next";
-        }
-
-        if (!isCorrectIdentifier)
-        {
-          continue;
-        }
-      }
-      else
-      {
-        if (memberAccessExpressionSyntax.Expression is not BaseExpressionSyntax)
-        {
-          continue;
-        }
-      }
-
-
-      location = Location.Create(
-          invocationExpressionSyntax.SyntaxTree,
-          invocationExpressionSyntax.Span
-      );
-
-
-      if (!baseCallMustBeCorrect)
-      {
-        return true;
-      }
-
-      var semanticModel = context.SemanticModel;
-      var node = (MethodDeclarationSyntax)context.Node;
-
-      //Method signature
-      var methodName = node.Identifier.Text;
-      var parameters = node.ParameterList.Parameters;
-      var numberOfParameters = parameters.Count;
-      var typesOfParameters = parameters.Select(
-          param =>
-              semanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
-
-
-      //Method signature of BaseCall
-      var nameOfCalledMethod = memberAccessExpressionSyntax.Name.Identifier.Text;
-      var arguments = invocationExpressionSyntax.ArgumentList.Arguments;
-      var numberOfArguments = arguments.Count;
-      var typesOfArguments = arguments.Select(
-          arg =>
-              semanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
-
-
-      //comparing method signature and method signature of BaseCall
-      if (nameOfCalledMethod.Equals(methodName)
-          && numberOfParameters == numberOfArguments
-          && typesOfParameters.Length == typesOfArguments.Length
-          && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
-              .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
-      {
-        return true;
-      }
-
-      ReportDiagnostic(context, Diagnostic.Create(WrongBaseCall, location));
-      return false;
-    }
-
-    location = null;
-    return false;
   }
 
   /// <summary>
@@ -512,6 +415,173 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
   }
 
+  private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic diagnostic) => context.ReportDiagnostic(diagnostic);
+
+  #region CheckForBaseCall
+
+  private static readonly Func<SyntaxNode, bool> s_isLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isIf = node => node is IfStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isElse = node => node is ElseClauseSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isReturn = node => node is ReturnStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isTry = node => node is TryStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isNormalSwitch = node => node is SwitchStatementSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isSwitchExpression = node => node is SwitchExpressionSyntax;
+  private static readonly Func<SyntaxNode, bool> s_isUsingStatement = node => node is UsingStatementSyntax;
+
+  private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool baseCallMustBeCorrect, bool isMixin, out Location? location)
+  {
+    if (nodeToCheck is null)
+    {
+      location = null;
+      return false;
+    }
+
+    foreach (var childNode in nodeToCheck.DescendantNodesAndSelf())
+    {
+      if (childNode is not InvocationExpressionSyntax invocationExpressionSyntax)
+      {
+        continue;
+      }
+
+      if (invocationExpressionSyntax.Expression is not MemberAccessExpressionSyntax memberAccessExpressionSyntax)
+      {
+        continue;
+      }
+
+      if (isMixin)
+      {
+        var nextIdentifier = memberAccessExpressionSyntax.Expression as IdentifierNameSyntax;
+
+        var isCorrectIdentifier = false;
+
+        if (nextIdentifier?.Identifier.Text == "Next")
+        {
+          var symbolDefinition = context.SemanticModel.GetSymbolInfo(nextIdentifier).Symbol?.OriginalDefinition.ToDisplayString();
+
+          isCorrectIdentifier = symbolDefinition is "Remotion.Mixins.Mixin<TTarget, TNext>.Next" or "Remotion.Mixins.Mixin<TTarget>.Next";
+        }
+
+        if (!isCorrectIdentifier)
+        {
+          continue;
+        }
+      }
+      else
+      {
+        if (memberAccessExpressionSyntax.Expression is not BaseExpressionSyntax)
+        {
+          continue;
+        }
+      }
+
+
+      location = Location.Create(
+          invocationExpressionSyntax.SyntaxTree,
+          invocationExpressionSyntax.Span
+      );
+
+
+      if (!baseCallMustBeCorrect)
+      {
+        return true;
+      }
+
+      var semanticModel = context.SemanticModel;
+      var node = (MethodDeclarationSyntax)context.Node;
+
+      //Method signature
+      var methodName = node.Identifier.Text;
+      var parameters = node.ParameterList.Parameters;
+      var numberOfParameters = parameters.Count;
+      var typesOfParameters = parameters.Select(
+          param =>
+              semanticModel.GetDeclaredSymbol(param)?.Type).ToArray();
+
+
+      //Method signature of BaseCall
+      var nameOfCalledMethod = memberAccessExpressionSyntax.Name.Identifier.Text;
+      var arguments = invocationExpressionSyntax.ArgumentList.Arguments;
+      var numberOfArguments = arguments.Count;
+      var typesOfArguments = arguments.Select(
+          arg =>
+              semanticModel.GetTypeInfo(arg.Expression).Type).ToArray();
+
+
+      //comparing method signature and method signature of BaseCall
+      if (nameOfCalledMethod.Equals(methodName)
+          && numberOfParameters == numberOfArguments
+          && typesOfParameters.Length == typesOfArguments.Length
+          && typesOfParameters.Zip(typesOfArguments, (p, a) => (p, a))
+              .All(pair => SymbolEqualityComparer.Default.Equals(pair.p, pair.a)))
+      {
+        return true;
+      }
+
+      ReportDiagnostic(context, Diagnostic.Create(WrongBaseCall, location));
+      return false;
+    }
+
+    location = null;
+    return false;
+  }
+
+  private struct NumberOfBaseCalls (int min, int max)
+  {
+    public const int Returns = -1;
+    public const int DiagnosticFound = -2;
+    public int Min { get; set; } = min;
+    public int Max { get; set; } = max;
+
+    public NumberOfBaseCalls (int numberOfBaseCalls)
+        : this(numberOfBaseCalls, numberOfBaseCalls)
+    {
+    }
+
+    public void Increment ()
+    {
+      Min++;
+      Max++;
+    }
+
+    public static bool operator == (NumberOfBaseCalls left, NumberOfBaseCalls right)
+    {
+      return left.Equals(right);
+    }
+
+    public static bool operator != (NumberOfBaseCalls left, NumberOfBaseCalls right)
+    {
+      return !(left == right);
+    }
+
+    public override bool Equals (object? o)
+    {
+      return o is NumberOfBaseCalls other && Equals(other);
+    }
+
+    public bool Equals (NumberOfBaseCalls other)
+    {
+      return Min == other.Min && Max == other.Max;
+    }
+
+    public bool Equals (int other)
+    {
+      return Min == other && Max == other;
+    }
+
+    public override int GetHashCode ()
+    {
+      unchecked
+      {
+        return (Min * 397) ^ Max;
+      }
+    }
+  }
+
+  private static Diagnostic? BaseCallCheckerInitializer (SyntaxNodeAnalysisContext context, bool isMixin)
+  {
+    return BaseCallChecker(context, context.Node, new NumberOfBaseCalls(0), isMixin).diagnostic;
+  }
+
   /// <summary>
   /// Checks a block of Code for a BaseCall and looks if there are multiple, none, there is one in a loop, etc. It also takes different branches into consideration.
   /// Basic explanation of the algorithm (I advise you to first read the parameter descriptions):
@@ -555,15 +625,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   /// <exception cref="Exception">
   /// This Method should not throw any other exceptions.
   /// </exception>
-  private static (NumberOfBaseCalls numberOfBaseCalls, Diagnostic? diagnostic) BaseCallCheckerRecursive (
+  private static (NumberOfBaseCalls numberOfBaseCalls, Diagnostic? diagnostic) BaseCallChecker (
       SyntaxNodeAnalysisContext context,
       SyntaxNode node,
       NumberOfBaseCalls numberOfBaseCalls,
       bool isMixin)
   {
-    const int returns = -1;
-    const int diagnosticFound = -2;
-
     DiagnosticDescriptor? diagnosticDescriptor = null;
 
     var methodNameLocation = Location.Create(
@@ -607,13 +674,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         }
       }
 
-
       //loop over childNodes
-      if (LoopOverChildNodes(childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
+      if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
       {
         return baseCallCheckerRecursive;
       }
-
 
       //go to next else branch
       elseClauseSyntax = ifStatementSyntax?.Else;
@@ -627,11 +692,11 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
 
     //find the overall min and max
-    listOfResults.RemoveAll(item => item.Equals(new NumberOfBaseCalls(returns)));
+    listOfResults.RemoveAll(item => item.Equals(new NumberOfBaseCalls(NumberOfBaseCalls.Returns)));
 
     if (listOfResults.Count == 0)
     {
-      return hasElseWithNoIf ? (new NumberOfBaseCalls(returns), null) : (new NumberOfBaseCalls(0), null);
+      return hasElseWithNoIf ? (new NumberOfBaseCalls(NumberOfBaseCalls.Returns), null) : (new NumberOfBaseCalls(0), null);
     }
 
     numberOfBaseCalls.Min = listOfResults[0].Min;
@@ -651,81 +716,106 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     diagnosticDescriptor = GetDiagnosticDescription(numberOfBaseCalls);
     return (numberOfBaseCalls, diagnosticDescriptor == null ? null : Diagnostic.Create(diagnosticDescriptor, methodNameLocation));
+  }
 
-
-    DiagnosticDescriptor? GetDiagnosticDescription (NumberOfBaseCalls numberOfBaseCallsLocal)
+  private static DiagnosticDescriptor? GetDiagnosticDescription (NumberOfBaseCalls numberOfBaseCallsLocal)
+  {
+    if (numberOfBaseCallsLocal.Max >= 2)
     {
-      if (numberOfBaseCallsLocal.Max >= 2)
-      {
-        return MultipleBaseCalls;
-      }
-
-      return numberOfBaseCallsLocal.Min == 0 ? NoBaseCall : null;
+      return MultipleBaseCalls;
     }
 
+    return numberOfBaseCallsLocal.Min == 0 ? NoBaseCall : null;
+  }
 
-    bool LoopOverChildNodes ( //return true if a diagnostic was found
-        IEnumerable<SyntaxNode>? childNodes,
-        NumberOfBaseCalls numberOfBaseCallsLocal,
-        Diagnostic? diagnostic,
-        out (NumberOfBaseCalls numberOfBaseCalls, Diagnostic? diagnostic) result)
+  private static bool LoopOverChildNodes ( //returns true if a diagnostic was found
+      SyntaxNodeAnalysisContext context,
+      DiagnosticDescriptor? diagnosticDescriptor,
+      bool isMixin,
+      List<NumberOfBaseCalls> listOfResults,
+      IEnumerable<SyntaxNode>? childNodes,
+      NumberOfBaseCalls numberOfBaseCalls,
+      Diagnostic? diagnostic,
+      out (NumberOfBaseCalls numberOfBaseCalls, Diagnostic? diagnostic) result)
+  {
+    var methodNameLocation = Location.Create(
+        context.Node.SyntaxTree,
+        ((MethodDeclarationSyntax)context.Node).Identifier.Span
+    );
+
+    if (childNodes == null)
     {
-      if (childNodes == null)
-      {
-        result = (numberOfBaseCallsLocal, diagnostic == null ? null : (diagnosticDescriptor == null) ? null : Diagnostic.Create(diagnosticDescriptor, methodNameLocation));
-        return diagnostic != null;
-      }
+      result = (numberOfBaseCalls, diagnostic == null ? null : diagnosticDescriptor == null ? null : Diagnostic.Create(diagnosticDescriptor, methodNameLocation));
+      return diagnostic != null;
+    }
 
-      foreach (var childNode in childNodes)
+    foreach (var childNode in childNodes)
+    {
+      //nested if -> recursion
+      if (s_isIf(childNode) || s_isElse(childNode))
       {
-        //nested if -> recursion
-        if (s_isIf(childNode) || s_isElse(childNode))
+        var (numberOfBaseCallsResult, resultDiagnostic) = BaseCallChecker(context, childNode, numberOfBaseCalls, isMixin);
+
+        if (numberOfBaseCallsResult.Equals(NumberOfBaseCalls.DiagnosticFound)) //recursion found a diagnostic -> stop everything
         {
-          var (numberOfBaseCallsResult, resultDiagnostic) = BaseCallCheckerRecursive(context, childNode, numberOfBaseCallsLocal, isMixin);
-
-          if (numberOfBaseCallsResult.Min == diagnosticFound) //recursion found a diagnostic -> stop everything
-          {
-            result = (numberOfBaseCallsResult, resultDiagnostic);
-            return true;
-          }
-
-          if (numberOfBaseCallsResult.Min == returns)
-          {
-            diagnostic = resultDiagnostic;
-            numberOfBaseCallsLocal = new NumberOfBaseCalls(returns);
-            break;
-          }
-
-          numberOfBaseCallsLocal.Min = Math.Max(numberOfBaseCallsLocal.Min, numberOfBaseCallsResult.Min);
-          numberOfBaseCallsLocal.Max = Math.Max(numberOfBaseCallsLocal.Max, numberOfBaseCallsResult.Max);
+          result = (numberOfBaseCallsResult, resultDiagnostic);
+          return true;
         }
 
-        else if (s_isReturn(childNode))
+        if (numberOfBaseCallsResult.Equals(NumberOfBaseCalls.Returns))
         {
-          if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location))
-          {
-            numberOfBaseCallsLocal.Increment();
-          }
-
-          var returnLocation = Location.Create(context.Node.SyntaxTree, childNode.Span);
-          var diagnosticDescriptorHere = GetDiagnosticDescription(numberOfBaseCallsLocal);
-          diagnostic = diagnosticDescriptorHere == null ? null : Diagnostic.Create(diagnosticDescriptorHere, location == null ? returnLocation : location);
-
-          numberOfBaseCallsLocal.Min = returns;
-          numberOfBaseCallsLocal.Max = returns;
+          diagnostic = resultDiagnostic;
+          numberOfBaseCalls = new NumberOfBaseCalls(NumberOfBaseCalls.Returns);
           break;
         }
 
-        else if (s_isTry(childNode))
+        numberOfBaseCalls.Min = Math.Max(numberOfBaseCalls.Min, numberOfBaseCallsResult.Min);
+        numberOfBaseCalls.Max = Math.Max(numberOfBaseCalls.Max, numberOfBaseCallsResult.Max);
+      }
+
+      else if (s_isReturn(childNode))
+      {
+        if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location))
         {
-          //if baseCall is in try or in catch block
-          Location? location = null;
-          var tryHasBaseCall = false;
-          foreach (var n in ((TryStatementSyntax)childNode).Block.ChildNodes())
+          numberOfBaseCalls.Increment();
+        }
+
+        var returnLocation = Location.Create(context.Node.SyntaxTree, childNode.Span);
+        var diagnosticDescriptorHere = GetDiagnosticDescription(numberOfBaseCalls);
+        diagnostic = diagnosticDescriptorHere == null ? null : Diagnostic.Create(diagnosticDescriptorHere, location == null ? returnLocation : location);
+
+        numberOfBaseCalls = new NumberOfBaseCalls(NumberOfBaseCalls.Returns);
+        break;
+      }
+
+      else if (s_isTry(childNode))
+      {
+        //if baseCall is in try or in catch block
+        Location? location = null;
+        var tryHasBaseCall = false;
+        foreach (var n in ((TryStatementSyntax)childNode).Block.ChildNodes())
+        {
+          if (ContainsBaseOrNextCall(context, n, false, isMixin, out var outLocation))
+          {
+            tryHasBaseCall = true;
+            if (location == null)
+            {
+              location = outLocation;
+            }
+
+            break;
+          }
+        }
+
+        var anyCatchHasBaseCall = false;
+        foreach (var c in ((TryStatementSyntax)childNode).Catches)
+        {
+          var catchHasBaseCall = false;
+          foreach (var n in c.ChildNodes())
           {
             if (ContainsBaseOrNextCall(context, n, false, isMixin, out var outLocation))
             {
-              tryHasBaseCall = true;
+              catchHasBaseCall = true;
               if (location == null)
               {
                 location = outLocation;
@@ -735,175 +825,102 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             }
           }
 
-          var anyCatchHasBaseCall = false;
-          foreach (var c in ((TryStatementSyntax)childNode).Catches)
+          if (catchHasBaseCall)
           {
-            var catchHasBaseCall = false;
-            foreach (var n in c.ChildNodes())
-            {
-              if (ContainsBaseOrNextCall(context, n, false, isMixin, out var outLocation))
-              {
-                catchHasBaseCall = true;
-                if (location == null)
-                {
-                  location = outLocation;
-                }
-
-                break;
-              }
-            }
-
-            if (catchHasBaseCall)
-            {
-              anyCatchHasBaseCall = true;
-              break;
-            }
-          }
-
-          if (tryHasBaseCall || anyCatchHasBaseCall)
-          {
-            result = (new NumberOfBaseCalls(diagnosticFound), Diagnostic.Create(InTryOrCatch, location));
-            return true;
-          }
-
-          var childNodesOfFinallyBlock = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
-          if (LoopOverChildNodes(childNodesOfFinallyBlock, numberOfBaseCallsLocal, diagnostic, out result))
-          {
-            return true;
-          }
-
-          numberOfBaseCallsLocal = result.numberOfBaseCalls;
-        }
-
-        else if (s_isLoop(childNode) && ContainsBaseOrNextCall(context, childNode, false, isMixin, out var locationInLoop))
-        {
-          diagnostic = Diagnostic.Create(InLoop, locationInLoop);
-        }
-
-        else if (s_isNormalSwitch(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
-        {
-          var allContainBaseCall = ((SwitchStatementSyntax)childNode).ChildNodes()
-              .OfType<SwitchSectionSyntax>()
-              .All(switchSectionSyntax => ContainsBaseOrNextCall(context, switchSectionSyntax, true, isMixin, out _));
-
-          if (allContainBaseCall)
-          {
-            numberOfBaseCallsLocal.Increment();
-          }
-          else
-          {
-            diagnostic = Diagnostic.Create(NoBaseCall, Location.Create(context.Node.SyntaxTree, ((SwitchStatementSyntax)childNode).SwitchKeyword.Span));
-            break;
-          }
-        }
-        else if (s_isSwitchExpression(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
-        {
-          var allContainBaseCall = ((SwitchExpressionSyntax)childNode).Arms.All(n => ContainsBaseOrNextCall(context, n, true, isMixin, out _));
-
-          if (allContainBaseCall)
-          {
-            numberOfBaseCallsLocal.Increment();
-          }
-          else
-          {
-            diagnostic = Diagnostic.Create(NoBaseCall, Location.Create(context.Node.SyntaxTree, ((SwitchStatementSyntax)childNode).SwitchKeyword.Span));
+            anyCatchHasBaseCall = true;
             break;
           }
         }
 
-        else if (s_isUsingStatement(childNode))
+        if (tryHasBaseCall || anyCatchHasBaseCall)
         {
-          var childNodesOfUsingBlock = ((UsingStatementSyntax)childNode).Statement.ChildNodes();
-          if (LoopOverChildNodes(childNodesOfUsingBlock, numberOfBaseCallsLocal, diagnostic, out result))
-          {
-            return true;
-          }
-
-
-          numberOfBaseCallsLocal = result.numberOfBaseCalls;
+          result = (new NumberOfBaseCalls(NumberOfBaseCalls.DiagnosticFound), Diagnostic.Create(InTryOrCatch, location));
+          return true;
         }
 
-        else if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location4))
+        var childNodesOfFinallyBlock = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfFinallyBlock, numberOfBaseCalls, diagnostic, out result))
         {
-          numberOfBaseCallsLocal.Increment();
-          if (numberOfBaseCallsLocal.Max >= 2)
-          {
-            diagnostic = Diagnostic.Create(MultipleBaseCalls, location4);
-            break;
-          }
+          return true;
         }
 
-        if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
-        {
-          AnalyzeAnonymousMethod(context, anonymousMethod);
-        }
+        numberOfBaseCalls = result.numberOfBaseCalls;
       }
 
-      if (diagnostic != null) //found a diagnostic
+      else if (s_isLoop(childNode) && ContainsBaseOrNextCall(context, childNode, false, isMixin, out var locationInLoop))
       {
-        result = (new NumberOfBaseCalls(diagnosticFound), diagnostic);
-        return true;
+        diagnostic = Diagnostic.Create(InLoop, locationInLoop);
       }
 
-      listOfResults.Add(numberOfBaseCallsLocal);
-      result = (numberOfBaseCallsLocal, null);
-      return false;
-    }
-  }
-
-  private struct NumberOfBaseCalls (int min, int max)
-  {
-    public int Min { get; set; } = min;
-    public int Max { get; set; } = max;
-
-    public NumberOfBaseCalls (int numberOfBaseCalls)
-        : this(numberOfBaseCalls, numberOfBaseCalls)
-    {
-    }
-
-    public void Increment ()
-    {
-      Min++;
-      Max++;
-    }
-
-    public static bool operator == (NumberOfBaseCalls left, NumberOfBaseCalls right)
-    {
-      return left.Equals(right);
-    }
-
-    public static bool operator != (NumberOfBaseCalls left, NumberOfBaseCalls right)
-    {
-      return !(left == right);
-    }
-
-    public override bool Equals (object? o)
-    {
-      return o is NumberOfBaseCalls other && Equals(other);
-    }
-
-    public bool Equals (NumberOfBaseCalls other)
-    {
-      return Min == other.Min && Max == other.Max;
-    }
-
-    public override int GetHashCode ()
-    {
-      unchecked
+      else if (s_isNormalSwitch(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
       {
-        return (Min * 397 + 228463) ^ Max;
+        var allContainBaseCall = ((SwitchStatementSyntax)childNode).ChildNodes()
+            .OfType<SwitchSectionSyntax>()
+            .All(switchSectionSyntax => ContainsBaseOrNextCall(context, switchSectionSyntax, true, isMixin, out _));
+
+        if (allContainBaseCall)
+        {
+          numberOfBaseCalls.Increment();
+        }
+        else
+        {
+          diagnostic = Diagnostic.Create(NoBaseCall, Location.Create(context.Node.SyntaxTree, ((SwitchStatementSyntax)childNode).SwitchKeyword.Span));
+          break;
+        }
+      }
+      else if (s_isSwitchExpression(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
+      {
+        var allContainBaseCall = ((SwitchExpressionSyntax)childNode).Arms.All(n => ContainsBaseOrNextCall(context, n, true, isMixin, out _));
+
+        if (allContainBaseCall)
+        {
+          numberOfBaseCalls.Increment();
+        }
+        else
+        {
+          diagnostic = Diagnostic.Create(NoBaseCall, Location.Create(context.Node.SyntaxTree, ((SwitchStatementSyntax)childNode).SwitchKeyword.Span));
+          break;
+        }
+      }
+
+      else if (s_isUsingStatement(childNode))
+      {
+        var childNodesOfUsingBlock = ((UsingStatementSyntax)childNode).Statement.ChildNodes();
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfUsingBlock, numberOfBaseCalls, diagnostic, out result))
+        {
+          return true;
+        }
+
+
+        numberOfBaseCalls = result.numberOfBaseCalls;
+      }
+
+      else if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location4))
+      {
+        numberOfBaseCalls.Increment();
+        if (numberOfBaseCalls.Max >= 2)
+        {
+          diagnostic = Diagnostic.Create(MultipleBaseCalls, location4);
+          break;
+        }
+      }
+
+      if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
+      {
+        AnalyzeAnonymousMethod(context, anonymousMethod);
       }
     }
-  }
 
-  private static readonly Func<SyntaxNode, bool> s_isLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isIf = node => node is IfStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isElse = node => node is ElseClauseSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isReturn = node => node is ReturnStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isTry = node => node is TryStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isNormalSwitch = node => node is SwitchStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isSwitchExpression = node => node is SwitchExpressionSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isUsingStatement = node => node is UsingStatementSyntax;
+    if (diagnostic != null) //found a diagnostic
+    {
+      result = (new NumberOfBaseCalls(NumberOfBaseCalls.DiagnosticFound), diagnostic);
+      return true;
+    }
+
+    listOfResults.Add(numberOfBaseCalls);
+    result = (numberOfBaseCalls, null);
+    return false;
+  }
 
   private static bool ContainsAnonymousMethod (SyntaxNode node, out SyntaxNode? anonymousMethod)
   {
@@ -927,8 +944,5 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic diagnostic)
-  {
-    context.ReportDiagnostic(diagnostic);
-  }
+  #endregion
 }
