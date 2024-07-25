@@ -35,7 +35,7 @@ public struct NumberOfBaseCalls (int min, int max)
     return o is NumberOfBaseCalls other && Equals(other);
   }
 
-  public bool Equals (NumberOfBaseCalls other)
+  private bool Equals (NumberOfBaseCalls other)
   {
     return Min == other.Min && Max == other.Max;
   }
