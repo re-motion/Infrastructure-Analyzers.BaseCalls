@@ -12,7 +12,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTests
 public class SwitchTests
 {
   [Fact]
-  public async Task SwitchStatement_WithBaseCallInEachCase_ReportsNothing ()
+  public async Task SwitchStatement_WithBaseCall_ReportsDiagnostic ()
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -32,77 +32,24 @@ public class SwitchTests
                     case 0:
                         return base.Test(0);
                     case 1:
-                        return base.Test(1);
+                        return 5;
                     default:
-                        return base.Test(value * 2);
+                        return 8;
                 }
             }
         }";
 
-    var expected = DiagnosticResult.EmptyDiagnosticResults;
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-  }
-
-  [Fact]
-  public async Task SwitchStatement_WithBaseCallInSomeButNotAllCases_ReportsDiagnostic ()
-  {
-    const string text = @"
-        using Remotion.Infrastructure.Analyzers.BaseCalls;
-            
-        public abstract class BaseClass
-        {
-            [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual int Test(int value) { return value; }
-        }
-        
-        public class DerivedClass : BaseClass
-        {
-            public override int Test(int value)
-            {
-                switch (value)
-                {
-                    case 0:
-                        return base.Test(0);
-                    case 1:
-                        return value + 1; // Missing base call
-                    default:
-                        return base.Test(value * 2);
-                }
-            }
-        }";
-
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
-        .WithLocation(14, 17)
-        .WithArguments("Test");
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-  }
-
-  [Fact]
-  public async Task SwitchExpression_WithBaseCallInEachArm_ReportsNothing ()
-  {
-    const string text = @"
-        using Remotion.Infrastructure.Analyzers.BaseCalls;
-            
-        public abstract class BaseClass
-        {
-            [BaseCallCheck(BaseCall.IsMandatory)]
-            public virtual int Test(int value) { return value; }
-        }
-        
-        public class DerivedClass : BaseClass
-        {
-            public override int Test(int value)
-            {
-                return value switch
-                {
-                    0 => base.Test(0),
-                    1 => base.Test(1),
-                    _ => base.Test(value * 2)
-                };
-            }
-        }";
-
-    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(12, 33)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InSwitch)
+                           .WithLocation(17, 32)
+                           .WithArguments("Test")
+                   };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
@@ -144,42 +91,7 @@ public class SwitchTests
   }
 
   [Fact]
-  public async Task BaseCallInSwitchStatement_ReportsNothing ()
-  {
-    const string text = @"
-            using Remotion.Infrastructure.Analyzers.BaseCalls;
-                
-            public abstract class BaseClass
-            {
-                [BaseCallCheck(BaseCall.IsMandatory)]
-                public virtual void Test(int value) { }
-            }
-            
-            public class DerivedClass : BaseClass
-            {
-                public override void Test(int value)
-                {
-                    switch (value)
-                    {
-                        case 0:
-                            base.Test(0);
-                            break;
-                        case 1:
-                            base.Test(1);
-                            break;
-                        default:
-                            base.Test(value);
-                            break;
-                    }
-                }
-            }";
-
-    var expected = DiagnosticResult.EmptyDiagnosticResults;
-    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
-  }
-
-  [Fact]
-  public async Task BaseCallInSwitchExpression_ReportsNothing ()
+  public async Task BaseCallInSwitchExpression_ReportsDiagnostic ()
   {
     const string text = @"
             using Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -195,13 +107,23 @@ public class SwitchTests
                 public override int Test(int value) =>
                     value switch
                     {
-                        0 => base.Test(0),
+                        0 => 2,
                         1 => base.Test(1),
-                        _ => base.Test(value)
+                        _ => 3
                     };
             }";
 
-    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    var expected = new[]
+                   {
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(12, 37)
+                           .WithArguments("Test"),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.InSwitch)
+                           .WithLocation(16, 30)
+                           .WithArguments("Test"),
+                   };
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }
