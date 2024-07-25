@@ -172,35 +172,33 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     try
     {
-      var node = (MethodDeclarationSyntax)context.Node;
-
-      if (!BaseCallCheckShouldHappen(context, out var isMixin))
+      if (AttributeChecks.HasIgnoreBaseCallCheckAttribute(context))
       {
         return;
       }
 
+      var node = context.Node as MethodDeclarationSyntax
+                 ?? throw new ArgumentException("expected MethodDeclarationSyntax");
 
-      // method is empty or does not contain base call
-      if (node.Body == null && node.ExpressionBody == null || !ContainsBaseOrNextCall(context, node, false, isMixin, out _))
+      if (!DoesOverride(context, out var isMixin))
       {
-        //location of the squigglies (Method Name)
-        var squiggliesLocation = Location.Create(
-            node.SyntaxTree,
-            node.Identifier.Span
-        );
-        ReportDiagnostic(context, Diagnostic.Create(NoBaseCall, squiggliesLocation));
+        if (node.Modifiers.Any(SyntaxKind.NewKeyword))
+        {
+          ContainsBaseOrNextCall(context, node, true, isMixin, out _);
+        }
+        else if (ContainsBaseOrNextCall(context, node, false, isMixin, out var location))
+        {
+          ReportDiagnostic(context, Diagnostic.Create(InNonOverridingMethod, location));
+        }
+
         return;
       }
 
-      // normal, overriding methods
-      var diagnostic = BaseCallCheckerInitializer(context, isMixin);
-
-      if (diagnostic == null)
+      if (BaseCallMustBePresent(context, isMixin))
       {
-        return;
+        var diagnostic = BaseCallCheckerInitializer(context, isMixin);
+        ReportDiagnostic(context, diagnostic);
       }
-
-      ReportDiagnostic(context, diagnostic);
     }
     catch (Exception ex)
     {
@@ -210,23 +208,42 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
   }
 
+  private static bool BaseCallMustBePresent (SyntaxNodeAnalysisContext context, bool isMixin)
+  {
+    var node = context.Node as MethodDeclarationSyntax
+               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+
+    var checkType = isMixin
+        ? BaseCall.Default //TODO check microsoft cci based base call checker
+        : AttributeChecks.CheckForBaseCallCheckAttribute(context);
+
+    if (checkType is BaseCall.Default)
+    {
+      var isVoid = node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax
+                   && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
+
+      checkType = isVoid ? BaseCall.IsMandatory : BaseCall.IsOptional;
+    }
+
+    if (checkType is BaseCall.IsOptional)
+    {
+      if (!ContainsBaseOrNextCall(context, node, false, isMixin, out _))
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   private static void AnalyzeLocalFunction (SyntaxNodeAnalysisContext context)
   {
-    var localFunction = context.Node as LocalFunctionStatementSyntax;
+    SyntaxNode? body = ((LocalFunctionStatementSyntax)context.Node).Body;
 
-    if (BaseCallCheckShouldHappen(context, out _))
+    if (body is null)
     {
       return;
     }
-
-
-    if (localFunction == null)
-    {
-      return;
-    }
-
-    SyntaxNode body = localFunction.Body!;
-
 
     if (ContainsBaseOrNextCall(context, body, false, false, out var location))
     {
@@ -260,161 +277,33 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     }
   }
 
-  /// <summary>
-  /// Checks if the Method overrides and if there is an attribute preventing the baseCall check.
-  /// </summary>
-  /// <param name="context">Context is there to call other methods that need this parameter</param>
-  /// <param name="isMixin">true, if the override is in context of a Mixin</param>
-  /// <returns>true, if a baseCall check should happen</returns>
-  /// <exception cref="ArgumentOutOfRangeException">the attribute BaseCall should only have 3 members</exception>
-  /// <exception cref="Exception">This method should not throw any other exceptions</exception>
-  private static bool BaseCallCheckShouldHappen (SyntaxNodeAnalysisContext context, out bool isMixin)
+  private static bool DoesOverride (SyntaxNodeAnalysisContext context, out bool isMixin)
   {
-    isMixin = false;
-    if (context.Node is LocalFunctionStatementSyntax)
+    var node = context.Node as MethodDeclarationSyntax
+               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+
+    if (node.Modifiers.Any(SyntaxKind.OverrideKeyword))
     {
-      return HasIgnoreBaseCallCheckAttribute();
+      isMixin = false;
+      return true;
     }
 
-    var node = (MethodDeclarationSyntax)context.Node;
-
-    var doesOverride = DoesOverride(out isMixin);
-
-    //check for IgnoreBaseCallCheck attribute
-    if (HasIgnoreBaseCallCheckAttribute()) //TODO move to top of AnalyzeMethod 
-    {
-      return false;
-    }
-
-
-    if (!doesOverride)
-    {
-      if (node.Modifiers.Any(SyntaxKind.NewKeyword))
-      {
-        ContainsBaseOrNextCall(context, node, true, false, out _);
-      }
-
-      else if (ContainsBaseOrNextCall(context, node, false, false, out var location))
-      {
-        ReportDiagnostic(context, Diagnostic.Create(InNonOverridingMethod, location));
-      }
-
-      return false;
-    }
-    else
-    {
-      var isVoid = node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax
-                   && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
-
-      if (isMixin)
-      {
-        //TODO check microsoft cci based base call checker
-        return isVoid;
-      }
-
-
-      var currentMethod = context.SemanticModel.GetDeclaredSymbol(node);
-      if (currentMethod is null)
-      {
-        throw new InvalidOperationException(); // TODO text
-      }
-
-      if (currentMethod.OverriddenMethod is null)
-      {
-        throw new InvalidOperationException(); // TODO text
-      }
-
-      if (currentMethod.OverriddenMethod.IsAbstract)
-      {
-        return false;
-      }
-
-      //TODO check if while is needed
-      do //TODO move to CheckForBaseCallCheckAttribute
-      {
-        var baseCallCheck = CheckForBaseCallCheckAttribute(currentMethod);
-        switch (baseCallCheck)
-        {
-          case BaseCall.IsOptional:
-            return false;
-          case BaseCall.IsMandatory:
-            return true;
-          case BaseCall.Default: //TODO bug: default is used in two cases: Attribute with .Default and no attribute
-            break;
-          default:
-            throw new ArgumentOutOfRangeException();
-        }
-
-        currentMethod = currentMethod.OverriddenMethod;
-      } while (currentMethod != null);
-
-      return isVoid;
-    }
-
-
-    BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
-    {
-      foreach (var attributeDescription in overriddenMethod.GetAttributes().Select(attr => attr.ToString()).ToList())
-      {
-        switch (attributeDescription)
-        {
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(Remotion.Infrastructure.Analyzers.BaseCalls.BaseCall.IsOptional)":
-            return BaseCall.IsOptional; //TODO check for multiple, in loops, etc...
-          case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(Remotion.Infrastructure.Analyzers.BaseCalls.BaseCall.IsMandatory)":
-            return BaseCall.IsMandatory;
-        }
-      }
-
-      return BaseCall.Default;
-    }
-
-    bool HasIgnoreBaseCallCheckAttribute ()
-    {
-      var attributeLists = context.Node switch
-      {
-          MethodDeclarationSyntax methodDeclaration => methodDeclaration.AttributeLists,
-          LocalFunctionStatementSyntax localFunction => localFunction.AttributeLists,
-          _ => throw new Exception("Expected a method declaration or function declaration")
-      };
-
-      return ContainsAttribute(attributeLists, "Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute.IgnoreBaseCallCheckAttribute()");
-    }
-
-    bool DoesOverride (out bool isMixin)
-    {
-      if (node.Modifiers.Any(SyntaxKind.OverrideKeyword))
-      {
-        isMixin = false;
-        return true;
-      }
-
-      // for mixins -> check if there is an [OverrideTarget] attribute
-      SyntaxList<AttributeListSyntax> attributeLists;
-      if (context.Node is MethodDeclarationSyntax methodDeclaration)
-      {
-        attributeLists = methodDeclaration.AttributeLists;
-      }
-      else
-      {
-        throw new ArgumentException("Expected a method declaration");
-      }
-
-      var containsOverrideTargetAttribute = ContainsAttribute(attributeLists, "Remotion.Mixins.OverrideTargetAttribute.OverrideTargetAttribute()");
-      isMixin = containsOverrideTargetAttribute;
-      return containsOverrideTargetAttribute;
-    }
-
-    bool ContainsAttribute (SyntaxList<AttributeListSyntax> attributeLists, string searchedFullNameOfNamespace)
-    {
-      return attributeLists.Any(
-          attributeListSyntax => attributeListSyntax.Attributes.Select(
-              attribute => context.SemanticModel.GetSymbolInfo(attribute).Symbol).OfType<ISymbol>().Select(
-              attributeSemanticModel => attributeSemanticModel.ToString()).Any(
-              attributeFullNameOfNamespace => attributeFullNameOfNamespace.Equals(searchedFullNameOfNamespace)));
-    }
+    // for mixins -> check if there is an [OverrideTarget] attribute
+    var hasOverrideTargetAttribute = AttributeChecks.HasOverrideTargetAttribute(context);
+    isMixin = hasOverrideTargetAttribute;
+    return hasOverrideTargetAttribute;
   }
 
-  private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic diagnostic) => context.ReportDiagnostic(diagnostic);
+  private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic? diagnostic)
+  {
+    if (diagnostic == null)
+    {
+      return;
+    }
+
+    context.ReportDiagnostic(diagnostic);
+  }
+
 
   //TODO move to separate class
 
@@ -489,7 +378,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       var semanticModel = context.SemanticModel;
-      var node = (MethodDeclarationSyntax)context.Node;
+      var node = context.Node as MethodDeclarationSyntax
+                 ?? throw new ArgumentException("expected MethodDeclarationSyntax");
 
       //Method signature
       var methodName = node.Identifier.Text;
