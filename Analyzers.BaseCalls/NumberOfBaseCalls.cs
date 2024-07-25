@@ -4,8 +4,8 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public struct NumberOfBaseCalls (int min, int max)
 {
-  public static NumberOfBaseCalls Returns => new NumberOfBaseCalls(-1);
-  public static NumberOfBaseCalls DiagnosticFound => new NumberOfBaseCalls(-2);
+  public static NumberOfBaseCalls Returns => new (-1);
+  public static NumberOfBaseCalls DiagnosticFound => new (-2);
   public int Min { get; set; } = min;
   public int Max { get; set; } = max;
 
