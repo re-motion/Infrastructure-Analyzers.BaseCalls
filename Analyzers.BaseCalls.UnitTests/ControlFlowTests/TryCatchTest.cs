@@ -12,7 +12,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTests
 public class TryCatchTests
 {
   [Fact]
-  public async Task BaseCallInTryBlock_ReportsTryDiagnostic ()
+  public async Task BaseCallInTryBlock_ReportsNothing ()
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -38,9 +38,7 @@ public class TryCatchTests
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InTryOrCatch)
-        .WithLocation(16, 21)
-        .WithArguments("Test");
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 
@@ -181,7 +179,7 @@ public class TryCatchTests
   }
 
   [Fact]
-  public async Task BaseCallInNestedTryCatch_ReportsTryDiagnostic ()
+  public async Task BaseCallInNestedTryCatch_ReportsNothing ()
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -214,9 +212,7 @@ public class TryCatchTests
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InTryOrCatch)
-        .WithLocation(18, 25)
-        .WithArguments("Test");
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
 }

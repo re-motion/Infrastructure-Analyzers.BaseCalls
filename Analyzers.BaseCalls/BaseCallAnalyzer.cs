@@ -320,7 +320,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static IEnumerable<BaseCallDescriptor> GetBaseCalls (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool isMixin)
   {
-    //TODO return all base calls, do not report (no side effects)
     var childNodes = nodeToCheck is null ? [] : nodeToCheck.DescendantNodesAndSelf();
 
     foreach (var childNode in childNodes)
@@ -430,7 +429,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   /// Loop:
   ///   Checks if the loop contains a basecall (-> return LoopDiagnostic)
   /// Switch:
-  ///   Checks if every branch of the if contains a basecall (else -> return BaseCallMissingDiagnostic).
+  ///   Checks if the switch contains a basecall (-> return SwitchDiagnostic).
   /// BaseCall:
   ///   increment numberOfBaseCalls by 1.
   ///
@@ -503,11 +502,12 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         }
       }
 
-      //loop over childNodes
       if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
       {
         return baseCallCheckerRecursive;
       }
+
+      listOfResults.Add(baseCallCheckerRecursive.numberOfBaseCalls);
 
       //go to next else branch
       elseClauseSyntax = ifStatementSyntax?.Else;
@@ -531,7 +531,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     numberOfBaseCalls = listOfResults[0];
 
 
-    //when the if does not have an else with no if in it, it is not guaranteed that it will go through a branch
+    //when the if does not have an unconditional else, it is not guaranteed that it will go through a branch
     if (!hasUnconditionalElse)
     {
       numberOfBaseCalls.Min = 0;
@@ -627,20 +627,28 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       //TODO check for throw and just blocks
 
 
-      else if (IsTry(childNode)) //TODO try is normal
+      else if (IsTry(childNode))
       {
-        //if baseCall is in try or in catch block
+        //recursively check try
         Location? location = null;
-        var tryHasBaseCall = false;
-        foreach (var n in ((TryStatementSyntax)childNode).Block.ChildNodes())
+        var childNodesOfTryBlock = ((TryStatementSyntax)childNode).Block.ChildNodes();
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfTryBlock, numberOfBaseCalls, diagnostic, out result))
         {
-          var baseCalls = GetBaseCalls(context, n, isMixin).ToArray();
-          ReportAllWrong(context, baseCalls);
+          return true;
+        }
+
+        numberOfBaseCalls = result.numberOfBaseCalls;
+
+        //check for base calls in catch
+        var anyCatchHasBaseCall = false;
+        foreach (var catchClauseSyntax in ((TryStatementSyntax)childNode).Catches)
+        {
+          var baseCalls = GetBaseCalls(context, catchClauseSyntax, isMixin).ToArray();
           if (baseCalls.Length > 0)
           {
-            tryHasBaseCall = true;
             if (location == null)
             {
+              anyCatchHasBaseCall = true;
               location = baseCalls[0].Location;
             }
 
@@ -648,39 +656,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           }
         }
 
-        var anyCatchHasBaseCall = false;
-        foreach (var c in ((TryStatementSyntax)childNode).Catches)
-        {
-          var catchHasBaseCall = false;
-          foreach (var n in c.ChildNodes())
-          {
-            var baseCalls = GetBaseCalls(context, n, isMixin).ToArray();
-            ReportAllWrong(context, baseCalls);
-            if (baseCalls.Length > 0)
-            {
-              catchHasBaseCall = true;
-              if (location == null)
-              {
-                location = baseCalls[0].Location;
-              }
-
-              break;
-            }
-          }
-
-          if (catchHasBaseCall)
-          {
-            anyCatchHasBaseCall = true;
-            break;
-          }
-        }
-
-        if (tryHasBaseCall || anyCatchHasBaseCall)
+        if (anyCatchHasBaseCall)
         {
           result = (NumberOfBaseCalls.DiagnosticFound, Diagnostic.Create(InTryOrCatch, location));
           return true;
         }
 
+        //recursively check finally block
         var childNodesOfFinallyBlock = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
         if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfFinallyBlock, numberOfBaseCalls, diagnostic, out result))
         {
@@ -689,6 +671,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
+
       else if (IsLoop(childNode))
       {
         if (ContainsBaseCall(context, childNode, isMixin, out var baseCalls))
@@ -741,7 +724,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       return true;
     }
 
-    listOfResults.Add(numberOfBaseCalls);
     result = (numberOfBaseCalls, null);
     return false;
   }
