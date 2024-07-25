@@ -73,7 +73,10 @@ public class DerivedClass : BaseClass
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(20, 7)
+                           .WithLocation(20, 7), 
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(16, 24) 
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -143,8 +146,11 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(17, 24),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(19, 31)
+                           .WithLocation(19, 31),
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -215,7 +221,10 @@ public class DerivedClass : BaseClass
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(19, 36)
+                           .WithLocation(19, 36),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(20, 5) 
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -254,6 +263,9 @@ public class DerivedClass : BaseClass
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
                            .WithLocation(20, 33),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(16, 24) 
                    };
 
 
@@ -294,7 +306,10 @@ public class DerivedClass : BaseClass
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
-                           .WithLocation(22, 13)
+                           .WithLocation(22, 13), 
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .WithLocation(16, 24) 
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
