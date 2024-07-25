@@ -11,10 +11,10 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public static class AttributeChecks
 {
-  private const string c_ignoreBaseCallCheckAttribute = 
+  private const string c_ignoreBaseCallCheckAttribute =
       "Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute";
-  
-  private const string c_overrideTargetAttribute = 
+
+  private const string c_overrideTargetAttribute =
       "Remotion.Mixins.OverrideTargetAttribute";
 
   private const string c_baseCallCheckAttributeMandatory =
@@ -41,30 +41,30 @@ public static class AttributeChecks
   {
     var node = context.Node as MethodDeclarationSyntax
                ?? throw new ArgumentException("expected MethodDeclarationSyntax");
-    
+
     var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
-    
+
     return HasAttribute(methodSymbol, c_ignoreBaseCallCheckAttribute);
   }
-  
+
   public static bool HasOverrideTargetAttribute (SyntaxNodeAnalysisContext context)
   {
     var node = context.Node as MethodDeclarationSyntax
                ?? throw new ArgumentException("expected MethodDeclarationSyntax");
-    
+
     var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
-    
+
     return HasAttribute(methodSymbol, c_overrideTargetAttribute);
   }
-  
+
 
   public static BaseCall CheckForBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
     var node = context.Node as MethodDeclarationSyntax
                ?? throw new ArgumentException("expected MethodDeclarationSyntax");
-    
+
     var currentMethod = context.SemanticModel.GetDeclaredSymbol(node);
-    
+
     if (currentMethod is null)
     {
       throw new InvalidOperationException("could not get Semantic Model of node");
@@ -80,7 +80,6 @@ public static class AttributeChecks
       return BaseCall.IsOptional;
     }
 
-    //TODO check if loop is needed
     do
     {
       if (HasAttribute(currentMethod, c_baseCallCheckAttributeOptional))
