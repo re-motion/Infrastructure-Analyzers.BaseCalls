@@ -162,7 +162,7 @@ public class BasicAndMiscellaneousTests
   }
 
   [Fact]
-  public async Task NoBaseCall_Overriding_Abstract_Method_With_Complex_Generics_ReportsNothing3 ()
+  public async Task NoBaseCall_Overriding_Abstract_Method_With_Complex_Generics_ReportsNothing ()
   {
     const string text = @"
         using System;
