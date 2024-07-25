@@ -190,4 +190,59 @@ using System.Collections.Generic;
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+  
+  
+  [Fact]
+  public async Task BaseCallInBlock_ReportsNothing ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+             
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                {
+                    base.Test(); // Base call in block
+                }
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+  [Fact]
+  public async Task MultipleBaseCalslInBlock_ReportsDiagnostic ()
+  {
+    const string text = @"
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+             
+        public abstract class BaseClass
+        {
+            [BaseCallCheck(BaseCall.IsMandatory)]
+            public virtual void Test() { }
+        }
+        
+        public class DerivedClass : BaseClass
+        {
+            public override void Test()
+            {
+                {
+                    base.Test(); // Base call in block
+                    base.Test(); // Base call in block
+                }
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
+        .WithLocation(16, 21)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 }

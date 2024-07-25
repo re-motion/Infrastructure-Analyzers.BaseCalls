@@ -317,6 +317,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   private static bool IsNormalSwitch (SyntaxNode node) => node is SwitchStatementSyntax;
   private static bool IsSwitchExpression (SyntaxNode node) => node is SwitchExpressionSyntax;
   private static bool IsUsingStatement (SyntaxNode node) => node is UsingStatementSyntax;
+  private static bool IsBlock (SyntaxNode node) => node is BlockSyntax;
 
   private static IEnumerable<BaseCallDescriptor> GetBaseCalls (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool isMixin)
   {
@@ -502,7 +503,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         }
       }
 
-      if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
+      if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
       {
         return baseCallCheckerRecursive;
       }
@@ -561,7 +562,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       SyntaxNodeAnalysisContext context,
       DiagnosticDescriptor? diagnosticDescriptor,
       bool isMixin,
-      List<NumberOfBaseCalls> listOfResults,
       IEnumerable<SyntaxNode>? childNodes,
       NumberOfBaseCalls numberOfBaseCalls,
       Diagnostic? diagnostic,
@@ -580,9 +580,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     foreach (var childNode in childNodes)
     {
-      //nested if -> recursion
       if (IsIf(childNode) || IsElse(childNode))
       {
+        //nested if -> recursion
         var (numberOfBaseCallsResult, resultDiagnostic) = BaseCallChecker(context, childNode, numberOfBaseCalls, isMixin);
 
         if (numberOfBaseCallsResult.Equals(NumberOfBaseCalls.DiagnosticFound)) //recursion found a diagnostic -> stop everything
@@ -601,7 +601,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         numberOfBaseCalls.Min = Math.Max(numberOfBaseCalls.Min, numberOfBaseCallsResult.Min);
         numberOfBaseCalls.Max = Math.Max(numberOfBaseCalls.Max, numberOfBaseCallsResult.Max);
       }
-
+      //TODO check for throw
       else if (IsReturn(childNode))
       {
         var baseCalls = GetBaseCalls(context, childNode, isMixin).ToArray();
@@ -624,15 +624,22 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         numberOfBaseCalls = NumberOfBaseCalls.Returns;
         break;
       }
-      //TODO check for throw and just blocks
+      else if (IsBlock(childNode))
+      {
+        var childNodesOfTryBlock = ((BlockSyntax)childNode).ChildNodes();
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, childNodesOfTryBlock, numberOfBaseCalls, diagnostic, out result))
+        {
+          return true;
+        }
 
-
+        numberOfBaseCalls = result.numberOfBaseCalls;
+      }
       else if (IsTry(childNode))
       {
         //recursively check try
         Location? location = null;
         var childNodesOfTryBlock = ((TryStatementSyntax)childNode).Block.ChildNodes();
-        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfTryBlock, numberOfBaseCalls, diagnostic, out result))
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, childNodesOfTryBlock, numberOfBaseCalls, diagnostic, out result))
         {
           return true;
         }
@@ -664,14 +671,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         //recursively check finally block
         var childNodesOfFinallyBlock = ((TryStatementSyntax)childNode).Finally?.Block.ChildNodes();
-        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfFinallyBlock, numberOfBaseCalls, diagnostic, out result))
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, childNodesOfFinallyBlock, numberOfBaseCalls, diagnostic, out result))
         {
           return true;
         }
 
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
-
       else if (IsLoop(childNode))
       {
         if (ContainsBaseCall(context, childNode, isMixin, out var baseCalls))
@@ -690,14 +696,17 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       else if (IsUsingStatement(childNode))
       {
         var childNodesOfUsingBlock = ((UsingStatementSyntax)childNode).Statement.ChildNodes();
-        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfUsingBlock, numberOfBaseCalls, diagnostic, out result))
+        if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, childNodesOfUsingBlock, numberOfBaseCalls, diagnostic, out result))
         {
           return true;
         }
 
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
-
+      else if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
+      {
+        AnalyzeAnonymousMethod(context, anonymousMethod);
+      }
       else if (ContainsBaseCall(context, childNode, isMixin, out var baseCalls))
       {
         ReportAllWrong(context, baseCalls);
@@ -710,11 +719,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
             break;
           }
         }
-      }
-
-      if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
-      {
-        AnalyzeAnonymousMethod(context, anonymousMethod);
       }
     }
 
