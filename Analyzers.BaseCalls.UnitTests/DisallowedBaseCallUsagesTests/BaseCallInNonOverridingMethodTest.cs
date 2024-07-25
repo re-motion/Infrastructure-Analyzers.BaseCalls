@@ -60,7 +60,7 @@ public class BaseCallInNonOverridingMethodTest
                 }
             }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.InNonOverridingMethod)
         .WithLocation(13, 21)
         .WithArguments("NonOverridingMethod");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

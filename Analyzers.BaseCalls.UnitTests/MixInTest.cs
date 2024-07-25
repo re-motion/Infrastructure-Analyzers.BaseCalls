@@ -91,7 +91,7 @@ public class MixTarget : System.Object
 }
 ";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(15, 15)
         .WithArguments("NonOverridingMethod");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -147,7 +147,7 @@ public class MixTarget : System.Object
 
 ";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.WrongBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.WrongBaseCall)
         .WithLocation(25, 5)
         .WithArguments("NonOverridingMethod");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

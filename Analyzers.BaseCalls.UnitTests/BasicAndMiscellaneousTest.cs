@@ -69,7 +69,7 @@ public class BasicAndMiscellaneousTests
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.InNonOverridingMethod)
         .WithLocation(17, 9)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -97,7 +97,7 @@ public class BasicAndMiscellaneousTests
                     }
                 }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.MultipleBaseCalls)
         .WithLocation(15, 25)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -218,7 +218,7 @@ using System.Collections.Generic;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
   [Fact]
-  public async Task MultipleBaseCalslInBlock_ReportsDiagnostic ()
+  public async Task MultipleBaseCallsInBlock_ReportsDiagnostic ()
   {
     const string text = @"
         using Remotion.Infrastructure.Analyzers.BaseCalls;
@@ -240,7 +240,7 @@ using System.Collections.Generic;
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.MultipleBaseCalls)
         .WithLocation(16, 21)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

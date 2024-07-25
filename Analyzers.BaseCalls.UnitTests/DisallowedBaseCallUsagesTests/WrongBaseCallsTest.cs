@@ -46,7 +46,7 @@ public class WrongBaseCallsTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.WrongBaseCall)
+                           .Diagnostic(Rules.WrongBaseCall)
                            .WithLocation(21, 9)
                            .WithArguments("Test")
                    };
@@ -88,11 +88,11 @@ public class WrongBaseCallsTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.WrongBaseCall)
+                           .Diagnostic(Rules.WrongBaseCall)
                            .WithLocation(21, 9)
                            .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(18, 26)
                            .WithArguments("Test")
                    };
@@ -168,11 +168,11 @@ public class WrongBaseCallsTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.WrongBaseCall)
+                           .Diagnostic(Rules.WrongBaseCall)
                            .WithLocation(21, 9)
                            .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(18, 26)
                            .WithArguments("Test")
                    };

@@ -113,7 +113,7 @@ public class ComplexBranchesTest
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(14, 26)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -144,7 +144,7 @@ public class ComplexBranchesTest
                     }
                 }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.MultipleBaseCalls)
         .WithLocation(19, 25)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -284,7 +284,7 @@ public class ComplexBranchesTest
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.MultipleBaseCalls)
         .WithLocation(55, 7)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -353,7 +353,7 @@ public class ComplexBranchesTest
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(23, 24)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -422,7 +422,7 @@ public class ComplexBranchesTest
         }
         """;
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(43, 9)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -515,7 +515,7 @@ public class DerivedClass : BaseClass
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(15, 34)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -551,7 +551,7 @@ public class DerivedClass : BaseClass
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.MultipleBaseCalls)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.MultipleBaseCalls)
         .WithLocation(19, 21)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -637,7 +637,7 @@ public class DerivedClass : BaseClass
             }
         }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(12, 34)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -688,7 +688,7 @@ public class DerivedClass : BaseClass
   }
 }";
 
-    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(BaseCallAnalyzer.NoBaseCall)
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
         .WithLocation(39, 5)
         .WithArguments("Test");
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

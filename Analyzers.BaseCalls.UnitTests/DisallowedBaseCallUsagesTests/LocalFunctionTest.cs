@@ -47,10 +47,10 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .Diagnostic(Rules.InLocalFunction)
                            .WithLocation(8, 25),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .Diagnostic(Rules.InNonOverridingMethod)
                            .WithLocation(8, 25)
                            .WithArguments("Test"),
                    };
@@ -81,10 +81,10 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .Diagnostic(Rules.InLocalFunction)
                            .WithLocation(10, 29),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .Diagnostic(Rules.InNonOverridingMethod)
                            .WithLocation(10, 29)
                            .WithArguments("Test"),
                    };
@@ -115,13 +115,13 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .Diagnostic(Rules.InLocalFunction)
                            .WithLocation(10, 25),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .Diagnostic(Rules.InLocalFunction)
                            .WithLocation(10, 25),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .Diagnostic(Rules.InNonOverridingMethod)
                            .WithLocation(10, 25),
                    };
 
@@ -150,10 +150,10 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .Diagnostic(Rules.InLocalFunction)
                            .WithLocation(10, 29),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .Diagnostic(Rules.InNonOverridingMethod)
                            .WithLocation(10, 29)
                            .WithArguments("Test"),
                    };
@@ -187,10 +187,10 @@ public class LocalFunctionTest
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InLocalFunction)
+                           .Diagnostic(Rules.InLocalFunction)
                            .WithLocation(13, 25),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InNonOverridingMethod)
+                           .Diagnostic(Rules.InNonOverridingMethod)
                            .WithLocation(13, 25)
                            .WithArguments("Test"),
                    };

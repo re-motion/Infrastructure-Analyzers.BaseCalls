@@ -72,10 +72,10 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .Diagnostic(Rules.InAnonymousMethod)
                            .WithLocation(20, 7), 
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(16, 24) 
                    };
 
@@ -110,7 +110,7 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(17, 24)
                    };
 
@@ -146,10 +146,10 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(17, 24),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .Diagnostic(Rules.InAnonymousMethod)
                            .WithLocation(19, 31),
                    };
 
@@ -184,7 +184,7 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(17, 24)
                    };
 
@@ -220,10 +220,10 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .Diagnostic(Rules.InAnonymousMethod)
                            .WithLocation(19, 36),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(20, 5) 
                    };
 
@@ -261,10 +261,10 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .Diagnostic(Rules.InAnonymousMethod)
                            .WithLocation(20, 33),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(16, 24) 
                    };
 
@@ -305,10 +305,10 @@ public class DerivedClass : BaseClass
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.InAnonymousMethod)
+                           .Diagnostic(Rules.InAnonymousMethod)
                            .WithLocation(22, 13), 
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(BaseCallAnalyzer.NoBaseCall)
+                           .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(16, 24) 
                    };
 

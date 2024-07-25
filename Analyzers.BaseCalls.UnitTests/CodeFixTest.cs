@@ -62,7 +62,7 @@ public class DerivedClass : BaseClass
 }";
 
 
-    var expected = Verifier.Diagnostic(BaseCallAnalyzer.NoBaseCall).WithLocation(15, 26);
+    var expected = Verifier.Diagnostic(Rules.NoBaseCall).WithLocation(15, 26);
     await Verifier.VerifyCodeFixAsync(TestCode, expected, FixedCode);
   }
   
@@ -111,7 +111,7 @@ public class DerivedClass : BaseClass
 }";
 
 
-    var expected = Verifier.Diagnostic(BaseCallAnalyzer.NoBaseCall).WithLocation(15, 26);
+    var expected = Verifier.Diagnostic(Rules.NoBaseCall).WithLocation(15, 26);
     await Verifier.VerifyCodeFixAsync(TestCode, expected, FixedCode);
   }
 }
