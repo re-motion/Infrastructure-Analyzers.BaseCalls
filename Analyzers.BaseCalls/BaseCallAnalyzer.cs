@@ -759,8 +759,9 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         if (numberOfBaseCallsResult.Equals(NumberOfBaseCalls.Returns))
         {
-          result = (NumberOfBaseCalls.Returns, resultDiagnostic);
-          return true;
+          diagnostic = resultDiagnostic;
+          numberOfBaseCalls = NumberOfBaseCalls.Returns;
+          break;
         }
 
         numberOfBaseCalls.Min = Math.Max(numberOfBaseCalls.Min, numberOfBaseCallsResult.Min);
