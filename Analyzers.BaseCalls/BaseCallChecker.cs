@@ -22,6 +22,7 @@ public static partial class BaseCallChecker
   private static bool IsSwitchExpression (SyntaxNode node) => node is SwitchExpressionSyntax;
   private static bool IsUsingStatement (SyntaxNode node) => node is UsingStatementSyntax;
   private static bool IsBlock (SyntaxNode node) => node is BlockSyntax;
+  private static bool IsThrow (SyntaxNode node) => node is ThrowStatementSyntax;
 
   public static Diagnostic? BaseCallCheckerInitializer (SyntaxNodeAnalysisContext context, bool isMixin)
   {
@@ -79,7 +80,6 @@ public static partial class BaseCallChecker
       NumberOfBaseCalls numberOfBaseCalls,
       bool isMixin)
   {
-
     var methodNameLocation = Location.Create(
         context.Node.SyntaxTree,
         ((MethodDeclarationSyntax)context.Node).Identifier.Span
@@ -95,15 +95,16 @@ public static partial class BaseCallChecker
     {
       var statement = ifStatementSyntax?.Statement ?? elseClauseSyntax?.Statement;
       var childNodes = GetChildNodes(statement);
-      
+
 
       if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, childNodes, numberOfBaseCalls, null, out var baseCallCheckerRecursive))
       {
         return baseCallCheckerRecursive;
       }
+
       listOfResults.Add(baseCallCheckerRecursive.numberOfBaseCalls);
 
-      
+
       //go to next else branch
       elseClauseSyntax = ifStatementSyntax?.Else;
       ifStatementSyntax = elseClauseSyntax?.Statement as IfStatementSyntax;
@@ -140,8 +141,8 @@ public static partial class BaseCallChecker
 
     diagnosticDescriptor = GetDiagnosticDescription(numberOfBaseCalls);
     return (numberOfBaseCalls, diagnosticDescriptor == null ? null : Diagnostic.Create(diagnosticDescriptor, methodNameLocation));
-    
-    
+
+
     IEnumerable<SyntaxNode> GetChildNodes (StatementSyntax? statement)
     {
       IEnumerable<SyntaxNode> childNodes;
@@ -225,7 +226,11 @@ public static partial class BaseCallChecker
         numberOfBaseCalls.Min = Math.Max(numberOfBaseCalls.Min, numberOfBaseCallsResult.Min);
         numberOfBaseCalls.Max = Math.Max(numberOfBaseCalls.Max, numberOfBaseCallsResult.Max);
       }
-      //TODO check for throw
+      else if (IsThrow(childNode))
+      {
+        numberOfBaseCalls = NumberOfBaseCalls.Returns;
+        break;
+      }
       else if (IsReturn(childNode))
       {
         var baseCalls = GetBaseCalls(context, childNode, isMixin).ToArray();
