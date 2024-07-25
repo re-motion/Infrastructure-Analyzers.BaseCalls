@@ -417,53 +417,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return false;
   }
 
-  private struct NumberOfBaseCalls (int min, int max)
-  {
-    public static NumberOfBaseCalls Returns => new NumberOfBaseCalls(-1);
-    public static NumberOfBaseCalls DiagnosticFound => new NumberOfBaseCalls(-2);
-    public int Min { get; set; } = min;
-    public int Max { get; set; } = max;
-
-    public NumberOfBaseCalls (int numberOfBaseCalls)
-        : this(numberOfBaseCalls, numberOfBaseCalls)
-    {
-    }
-
-    public void Increment ()
-    {
-      Min++;
-      Max++;
-    }
-
-    public static bool operator == (NumberOfBaseCalls left, NumberOfBaseCalls right)
-    {
-      return left.Equals(right);
-    }
-
-    public static bool operator != (NumberOfBaseCalls left, NumberOfBaseCalls right)
-    {
-      return !(left == right);
-    }
-
-    public override bool Equals (object? o)
-    {
-      return o is NumberOfBaseCalls other && Equals(other);
-    }
-
-    public bool Equals (NumberOfBaseCalls other)
-    {
-      return Min == other.Min && Max == other.Max;
-    }
-
-    public override int GetHashCode ()
-    {
-      unchecked
-      {
-        return (Min * 397) ^ Max;
-      }
-    }
-  }
-
   private static Diagnostic? BaseCallCheckerInitializer (SyntaxNodeAnalysisContext context, bool isMixin)
   {
     return BaseCallChecker(context, context.Node, new NumberOfBaseCalls(0), isMixin).diagnostic;
