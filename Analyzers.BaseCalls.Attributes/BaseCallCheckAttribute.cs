@@ -24,7 +24,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls
   ///   (in means of the inheritance hierarchy)
   ///   by the <see cref="IgnoreBaseCallCheckAttribute" /> attribute.
   /// </summary>
-  [AttributeUsage(AttributeTargets.Method)]
+  [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
   public class BaseCallCheckAttribute : System.Attribute
   {
     public BaseCallCheckAttribute (BaseCall mode)
