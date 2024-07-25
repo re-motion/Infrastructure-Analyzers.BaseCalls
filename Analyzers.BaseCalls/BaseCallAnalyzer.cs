@@ -161,7 +161,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.MethodDeclaration);
 
-    context.RegisterSyntaxNodeAction(AnalyzeMethod, SyntaxKind.LocalFunctionStatement);
+    context.RegisterSyntaxNodeAction(AnalyzeLocalFunction, SyntaxKind.LocalFunctionStatement);
 
 
     context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
@@ -172,13 +172,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
   {
     try
     {
-      //also checks if there are baseCalls in local functions
-      if (context.Node is LocalFunctionStatementSyntax)
-      {
-        AnalyzeLocalFunction();
-        return;
-      }
-
       var node = (MethodDeclarationSyntax)context.Node;
 
       if (!BaseCallCheckShouldHappen(context, out var isMixin))
@@ -187,7 +180,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
 
-      // method is empty
+      // method is empty or does not contain base call
       if (node.Body == null && node.ExpressionBody == null || !ContainsBaseOrNextCall(context, node, false, isMixin, out _))
       {
         //location of the squigglies (Method Name)
@@ -208,37 +201,36 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
       }
 
       ReportDiagnostic(context, diagnostic);
-      return;
-
-      void AnalyzeLocalFunction ()
-      {
-        var localFunction = context.Node as LocalFunctionStatementSyntax;
-
-        if (BaseCallCheckShouldHappen(context, out _))
-        {
-          return;
-        }
-
-
-        if (localFunction == null)
-        {
-          return;
-        }
-
-        SyntaxNode body = localFunction.Body!;
-
-
-        if (ContainsBaseOrNextCall(context, body, false, false, out var location))
-        {
-          ReportDiagnostic(context, Diagnostic.Create(InLocalFunction, location));
-        }
-      }
     }
     catch (Exception ex)
     {
       //for debugging, comment return and uncomment reportDiagnostic
       //return;
       context.ReportDiagnostic(Diagnostic.Create(s_error, context.Node.GetLocation(), ex.ToString()));
+    }
+  }
+
+  private static void AnalyzeLocalFunction (SyntaxNodeAnalysisContext context)
+  {
+    var localFunction = context.Node as LocalFunctionStatementSyntax;
+
+    if (BaseCallCheckShouldHappen(context, out _))
+    {
+      return;
+    }
+
+
+    if (localFunction == null)
+    {
+      return;
+    }
+
+    SyntaxNode body = localFunction.Body!;
+
+
+    if (ContainsBaseOrNextCall(context, body, false, false, out var location))
+    {
+      ReportDiagnostic(context, Diagnostic.Create(InLocalFunction, location));
     }
   }
 
@@ -289,7 +281,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     var doesOverride = DoesOverride(out isMixin);
 
     //check for IgnoreBaseCallCheck attribute
-    if (HasIgnoreBaseCallCheckAttribute())
+    if (HasIgnoreBaseCallCheckAttribute()) //TODO move to top of AnalyzeMethod 
     {
       return false;
     }
@@ -309,48 +301,55 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       return false;
     }
-
-    var isVoid = node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax
-                 && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
-
-    if (isMixin)
+    else
     {
-      return isVoid;
-    }
+      var isVoid = node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax
+                   && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
+
+      if (isMixin)
+      {
+        //TODO check microsoft cci based base call checker
+        return isVoid;
+      }
 
 
-    //get overridden method
-    var currentMethod = context.SemanticModel.GetDeclaredSymbol(node);
+      var currentMethod = context.SemanticModel.GetDeclaredSymbol(node);
+      if (currentMethod is null)
+      {
+        throw new InvalidOperationException(); // TODO text
+      }
 
-    while (currentMethod != null)
-    {
-      if (currentMethod.IsAbstract)
+      if (currentMethod.OverriddenMethod is null)
+      {
+        throw new InvalidOperationException(); // TODO text
+      }
+
+      if (currentMethod.OverriddenMethod.IsAbstract)
       {
         return false;
       }
 
-      var baseCallCheck = CheckForBaseCallCheckAttribute(currentMethod);
-      switch (baseCallCheck)
+      //TODO check if while is needed
+      do //TODO move to CheckForBaseCallCheckAttribute
       {
-        case BaseCall.IsOptional:
-          return false;
-        case BaseCall.IsMandatory:
-          return true;
-        case BaseCall.Default:
-          break;
-        default:
-          throw new ArgumentOutOfRangeException();
-      }
+        var baseCallCheck = CheckForBaseCallCheckAttribute(currentMethod);
+        switch (baseCallCheck)
+        {
+          case BaseCall.IsOptional:
+            return false;
+          case BaseCall.IsMandatory:
+            return true;
+          case BaseCall.Default: //TODO bug: default is used in two cases: Attribute with .Default and no attribute
+            break;
+          default:
+            throw new ArgumentOutOfRangeException();
+        }
 
-      if (currentMethod.IsVirtual || currentMethod.IsAbstract)
-      {
-        break;
-      }
+        currentMethod = currentMethod.OverriddenMethod;
+      } while (currentMethod != null);
 
-      currentMethod = currentMethod.OverriddenMethod;
+      return isVoid;
     }
-
-    return isVoid;
 
 
     BaseCall CheckForBaseCallCheckAttribute (IMethodSymbol overriddenMethod)
@@ -360,7 +359,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         switch (attributeDescription)
         {
           case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(Remotion.Infrastructure.Analyzers.BaseCalls.BaseCall.IsOptional)":
-            return BaseCall.IsOptional;
+            return BaseCall.IsOptional; //TODO check for multiple, in loops, etc...
           case "Remotion.Infrastructure.Analyzers.BaseCalls.BaseCallCheckAttribute(Remotion.Infrastructure.Analyzers.BaseCalls.BaseCall.IsMandatory)":
             return BaseCall.IsMandatory;
         }
@@ -417,19 +416,22 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic diagnostic) => context.ReportDiagnostic(diagnostic);
 
+  //TODO move to separate class
+
   #region CheckForBaseCall
 
-  private static readonly Func<SyntaxNode, bool> s_isLoop = node => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isIf = node => node is IfStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isElse = node => node is ElseClauseSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isReturn = node => node is ReturnStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isTry = node => node is TryStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isNormalSwitch = node => node is SwitchStatementSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isSwitchExpression = node => node is SwitchExpressionSyntax;
-  private static readonly Func<SyntaxNode, bool> s_isUsingStatement = node => node is UsingStatementSyntax;
+  private static bool IsLoop (SyntaxNode node) => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
+  private static bool IsIf (SyntaxNode node) => node is IfStatementSyntax;
+  private static bool IsElse (SyntaxNode node) => node is ElseClauseSyntax;
+  private static bool IsReturn (SyntaxNode node) => node is ReturnStatementSyntax;
+  private static bool IsTry (SyntaxNode node) => node is TryStatementSyntax;
+  private static bool IsNormalSwitch (SyntaxNode node) => node is SwitchStatementSyntax;
+  private static bool IsSwitchExpression (SyntaxNode node) => node is SwitchExpressionSyntax;
+  private static bool IsUsingStatement (SyntaxNode node) => node is UsingStatementSyntax;
 
   private static bool ContainsBaseOrNextCall (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool baseCallMustBeCorrect, bool isMixin, out Location? location)
   {
+    //TODO return all base calls, do not report (no side effects)
     if (nodeToCheck is null)
     {
       location = null;
@@ -527,8 +529,8 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private struct NumberOfBaseCalls (int min, int max)
   {
-    public const int Returns = -1;
-    public const int DiagnosticFound = -2;
+    public static NumberOfBaseCalls Returns => new NumberOfBaseCalls(-1);
+    public static NumberOfBaseCalls DiagnosticFound => new NumberOfBaseCalls(-2);
     public int Min { get; set; } = min;
     public int Max { get; set; } = max;
 
@@ -561,11 +563,6 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     public bool Equals (NumberOfBaseCalls other)
     {
       return Min == other.Min && Max == other.Max;
-    }
-
-    public bool Equals (int other)
-    {
-      return Min == other && Max == other;
     }
 
     public override int GetHashCode ()
@@ -640,7 +637,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     var listOfResults = new List<NumberOfBaseCalls>();
     var ifStatementSyntax = node as IfStatementSyntax;
-    var hasElseWithNoIf = ifStatementSyntax == null;
+    var hasUnconditionalElse = ifStatementSyntax == null;
     ElseClauseSyntax? elseClauseSyntax = null;
 
 
@@ -662,15 +659,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         {
           childNodes = methodDeclaration.Body.ChildNodes();
         }
-
         else if (methodDeclaration.ExpressionBody != null)
         {
           childNodes = methodDeclaration.ExpressionBody.ChildNodes();
         }
-
         else
         {
-          throw new NullReferenceException("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause (method does not have a body)");
+          throw new InvalidOperationException("expected MethodDeclaration with body or ExpressionBody as ArrowExpressionClause (method does not have a body)");
         }
       }
 
@@ -686,24 +681,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
       if (elseClauseSyntax != null && ifStatementSyntax == null)
       {
-        hasElseWithNoIf = true;
+        hasUnconditionalElse = true;
       }
     } while (elseClauseSyntax != null);
 
 
     //find the overall min and max
-    listOfResults.RemoveAll(item => item.Equals(new NumberOfBaseCalls(NumberOfBaseCalls.Returns)));
+    listOfResults.RemoveAll(item => item.Equals(NumberOfBaseCalls.Returns));
 
     if (listOfResults.Count == 0)
     {
-      return hasElseWithNoIf ? (new NumberOfBaseCalls(NumberOfBaseCalls.Returns), null) : (new NumberOfBaseCalls(0), null);
+      return hasUnconditionalElse ? (NumberOfBaseCalls.Returns, null) : (new NumberOfBaseCalls(0), null);
     }
 
-    numberOfBaseCalls.Min = listOfResults[0].Min;
-    numberOfBaseCalls.Max = listOfResults[0].Max;
+    numberOfBaseCalls = listOfResults[0];
+
 
     //when the if does not have an else with no if in it, it is not guaranteed that it will go through a branch
-    if (!hasElseWithNoIf)
+    if (!hasUnconditionalElse)
     {
       numberOfBaseCalls.Min = 0;
     }
@@ -752,7 +747,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     foreach (var childNode in childNodes)
     {
       //nested if -> recursion
-      if (s_isIf(childNode) || s_isElse(childNode))
+      if (IsIf(childNode) || IsElse(childNode))
       {
         var (numberOfBaseCallsResult, resultDiagnostic) = BaseCallChecker(context, childNode, numberOfBaseCalls, isMixin);
 
@@ -764,16 +759,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         if (numberOfBaseCallsResult.Equals(NumberOfBaseCalls.Returns))
         {
-          diagnostic = resultDiagnostic;
-          numberOfBaseCalls = new NumberOfBaseCalls(NumberOfBaseCalls.Returns);
-          break;
+          result = (NumberOfBaseCalls.Returns, resultDiagnostic);
+          return true;
         }
 
         numberOfBaseCalls.Min = Math.Max(numberOfBaseCalls.Min, numberOfBaseCallsResult.Min);
         numberOfBaseCalls.Max = Math.Max(numberOfBaseCalls.Max, numberOfBaseCallsResult.Max);
       }
 
-      else if (s_isReturn(childNode))
+      else if (IsReturn(childNode))
       {
         if (ContainsBaseOrNextCall(context, childNode, true, isMixin, out var location))
         {
@@ -784,11 +778,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         var diagnosticDescriptorHere = GetDiagnosticDescription(numberOfBaseCalls);
         diagnostic = diagnosticDescriptorHere == null ? null : Diagnostic.Create(diagnosticDescriptorHere, location == null ? returnLocation : location);
 
-        numberOfBaseCalls = new NumberOfBaseCalls(NumberOfBaseCalls.Returns);
+        numberOfBaseCalls = NumberOfBaseCalls.Returns;
         break;
       }
+      //TODO check for throw and just blocks
 
-      else if (s_isTry(childNode))
+
+      else if (IsTry(childNode)) //TODO try is normal
       {
         //if baseCall is in try or in catch block
         Location? location = null;
@@ -834,7 +830,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
         if (tryHasBaseCall || anyCatchHasBaseCall)
         {
-          result = (new NumberOfBaseCalls(NumberOfBaseCalls.DiagnosticFound), Diagnostic.Create(InTryOrCatch, location));
+          result = (NumberOfBaseCalls.DiagnosticFound, Diagnostic.Create(InTryOrCatch, location));
           return true;
         }
 
@@ -847,12 +843,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
 
-      else if (s_isLoop(childNode) && ContainsBaseOrNextCall(context, childNode, false, isMixin, out var locationInLoop))
+      else if (IsLoop(childNode) && ContainsBaseOrNextCall(context, childNode, false, isMixin, out var locationInLoop))
       {
         diagnostic = Diagnostic.Create(InLoop, locationInLoop);
       }
 
-      else if (s_isNormalSwitch(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
+      //TODO report if Base call in switch
+      else if (IsNormalSwitch(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
       {
         var allContainBaseCall = ((SwitchStatementSyntax)childNode).ChildNodes()
             .OfType<SwitchSectionSyntax>()
@@ -868,7 +865,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
           break;
         }
       }
-      else if (s_isSwitchExpression(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
+      else if (IsSwitchExpression(childNode) && ContainsBaseOrNextCall(context, childNode, true, isMixin, out _))
       {
         var allContainBaseCall = ((SwitchExpressionSyntax)childNode).Arms.All(n => ContainsBaseOrNextCall(context, n, true, isMixin, out _));
 
@@ -883,14 +880,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         }
       }
 
-      else if (s_isUsingStatement(childNode))
+      else if (IsUsingStatement(childNode))
       {
         var childNodesOfUsingBlock = ((UsingStatementSyntax)childNode).Statement.ChildNodes();
         if (LoopOverChildNodes(context, diagnosticDescriptor, isMixin, listOfResults, childNodesOfUsingBlock, numberOfBaseCalls, diagnostic, out result))
         {
           return true;
         }
-
 
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
@@ -913,7 +909,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (diagnostic != null) //found a diagnostic
     {
-      result = (new NumberOfBaseCalls(NumberOfBaseCalls.DiagnosticFound), diagnostic);
+      result = (NumberOfBaseCalls.DiagnosticFound, diagnostic);
       return true;
     }
 
