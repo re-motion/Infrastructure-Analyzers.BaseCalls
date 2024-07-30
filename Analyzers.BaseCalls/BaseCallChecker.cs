@@ -14,6 +14,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 public static partial class BaseCallChecker
 {
   private static bool IsLoop (SyntaxNode node) => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
+  private static bool IsForEachLoop (SyntaxNode node) => node is ForEachStatementSyntax;
   private static bool IsIf (SyntaxNode node) => node is IfStatementSyntax;
   private static bool IsElse (SyntaxNode node) => node is ElseClauseSyntax;
   private static bool IsReturn (SyntaxNode node) => node is ReturnStatementSyntax;
@@ -309,9 +310,24 @@ public static partial class BaseCallChecker
       }
       else if (IsLoop(childNode))
       {
-        if (ContainsBaseCall(context, childNode, isMixin, out var baseCalls))
+        //in a for each loop, it is allowed to have a baseCall as an expression in the header
+        var newChildNode = childNode;
+        if (IsForEachLoop(childNode))
+        {
+          var baseCallsHere = GetBaseCalls(context, ((ForEachStatementSyntax)childNode).Expression, isMixin).ToArray();
+          BaseCallReporter.ReportAllWrong(context, baseCallsHere);
+          if (baseCallsHere.Any(bc => bc.CallsBaseMethod))
+          {
+            numberOfBaseCalls.Increment();
+          }
+
+          newChildNode = (childNode as ForEachStatementSyntax)!.Statement;
+        }
+
+        if (ContainsBaseCall(context, newChildNode, isMixin, out var baseCalls))
         {
           diagnostic = Diagnostic.Create(Rules.InLoop, baseCalls[0].Location);
+          numberOfBaseCalls = NumberOfBaseCalls.DiagnosticFound;
         }
       }
       else if (IsNormalSwitch(childNode) || IsSwitchExpression(childNode))
