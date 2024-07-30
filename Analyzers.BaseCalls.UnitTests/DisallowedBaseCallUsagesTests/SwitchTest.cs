@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Testing;
 using Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.Utilities;
 using Xunit;
 
-namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.ControlFlowTests;
+namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests.DisallowedBaseCallUsagesTests;
 
 public class SwitchTests
 {
