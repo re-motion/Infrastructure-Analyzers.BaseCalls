@@ -42,6 +42,14 @@ public class BaseCallCodeFixProvider : CodeFixProvider
         diagnostic);
   }
 
+  /// <summary>
+  /// Adds an the attribute [IgnoreBaseCallCheck]  to the current method and tries to import the corresponding namespace
+  /// If you have problems with correct formatting, add a .editorconfig file to the solution which specifies the indent style and size
+  /// </summary>
+  /// <param name="document"></param>
+  /// <param name="methodDeclaration"></param>
+  /// <param name="cancellationToken"></param>
+  /// <returns></returns>
   private async Task<Document> AddIgnoreAttributeAsync (Document document, MethodDeclarationSyntax methodDeclaration, CancellationToken cancellationToken)
   {
     var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
