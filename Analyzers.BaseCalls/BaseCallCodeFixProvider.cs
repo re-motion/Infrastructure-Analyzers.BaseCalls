@@ -43,7 +43,7 @@ public class BaseCallCodeFixProvider : CodeFixProvider
   }
 
   /// <summary>
-  /// Adds an the attribute [IgnoreBaseCallCheck]  to the current method and tries to import the corresponding namespace
+  /// Adds the attribute [IgnoreBaseCallCheck]  to the current method and tries to import the corresponding namespace
   /// If you have problems with correct formatting, add a .editorconfig file to the solution which specifies the indent style and size
   /// </summary>
   /// <param name="document"></param>
@@ -54,7 +54,9 @@ public class BaseCallCodeFixProvider : CodeFixProvider
   {
     var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
     if (root == null)
+    {
       return document;
+    }
 
     // Add attribute to method
     var attribute = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("IgnoreBaseCallCheck"));
@@ -65,7 +67,9 @@ public class BaseCallCodeFixProvider : CodeFixProvider
 
     // Check if the namespace is already imported
     if (root is not CompilationUnitSyntax compilationUnit)
+    {
       return document;
+    }
 
     var hasNamespace = compilationUnit.Usings
         .Any(u => u.Name?.ToString() == "Remotion.Infrastructure.Analyzers.BaseCalls");
