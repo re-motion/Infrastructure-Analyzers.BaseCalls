@@ -75,7 +75,7 @@ public static class AttributeChecks
 
     if (currentMethod.OverriddenMethod is null)
     {
-      throw new InvalidOperationException("Method does not have an overriden method");
+      throw new InvalidOperationException("overriding method does not have an overriden method (there will be an other error: no suitable Method for override)");
     }
 
     if (currentMethod.OverriddenMethod.IsAbstract || HasAttribute(currentMethod.OverriddenMethod, c_emptyTemplateMethodAttribute))
