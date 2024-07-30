@@ -60,7 +60,7 @@ public class BaseCallCodeFixProvider : CodeFixProvider
       return document;
 
     var hasNamespace = compilationUnit.Usings
-        .Any(u => u.Name.ToString() == "Remotion.Infrastructure.Analyzers.BaseCalls");
+        .Any(u => u.Name?.ToString() == "Remotion.Infrastructure.Analyzers.BaseCalls");
 
     if (!hasNamespace)
     {
