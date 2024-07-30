@@ -45,4 +45,13 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls
   public class IgnoreBaseCallCheckAttribute : System.Attribute
   {
   }
+
+  /// <summary>
+  /// Indicates that a method should be treated as abstract for base call analysis. The first derived method does not require a 
+  /// base call. All the following derived methods again require the base call given by the applicable rules.
+  /// </summary>
+  [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+  public class EmptyTemplateMethodAttribute : Attribute
+  {
+  }
 }

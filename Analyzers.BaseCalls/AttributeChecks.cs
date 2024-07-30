@@ -14,6 +14,9 @@ public static class AttributeChecks
   private const string c_ignoreBaseCallCheckAttribute =
       "Remotion.Infrastructure.Analyzers.BaseCalls.IgnoreBaseCallCheckAttribute";
 
+  private const string c_emptyTemplateMethodAttribute =
+      "Remotion.Infrastructure.Analyzers.BaseCalls.EmptyTemplateMethodAttribute";
+
   private const string c_overrideTargetAttribute =
       "Remotion.Mixins.OverrideTargetAttribute";
 
@@ -75,7 +78,7 @@ public static class AttributeChecks
       throw new InvalidOperationException("Method does not have an overriden method");
     }
 
-    if (currentMethod.OverriddenMethod.IsAbstract)
+    if (currentMethod.OverriddenMethod.IsAbstract || HasAttribute(currentMethod.OverriddenMethod, c_emptyTemplateMethodAttribute))
     {
       return BaseCall.IsOptional;
     }

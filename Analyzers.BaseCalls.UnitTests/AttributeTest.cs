@@ -182,4 +182,126 @@ public class AttributeTests
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+
+  [Fact]
+  public async Task NoBaseCall_Overriding_Virtual_EmptyTemplateMethod_ReportsNothing ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        namespace ConsoleApp1;
+
+        public class BaseClass
+        {
+            [EmptyTemplateMethodAttribute]
+            public virtual void x()
+            {
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void x()
+            {
+                //base.x();
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task NoBaseCall_Overriding_Virtual_EmptyTemplateMethod_With_Generics_ReportsNothing ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        namespace ConsoleApp1;
+
+        public class BaseClass<T>
+        {
+            [EmptyTemplateMethodAttribute]
+            public virtual void x(T a)
+            {
+            }
+        }
+
+        public class DerivedClass : BaseClass<string>
+        {
+            public override void x(string a)
+            {
+                //base.x();
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task NoBaseCall_Overriding_Virtual_EmptyTemplateMethod_With_Complex_Generics_ReportsNothing ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+        using System.Collections.Generic;
+
+        namespace ConsoleApp1;
+
+        public class BaseClass<T>
+        {
+            [EmptyTemplateMethodAttribute]
+            public virtual void x(List<T> a)
+            {
+            }
+        }
+
+        public class DerivedClass : BaseClass<string>
+        {
+            public override void x(List<string> a)
+            {
+                //base.x();
+            }
+        }";
+
+    var expected = DiagnosticResult.EmptyDiagnosticResults;
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
+
+  [Fact]
+  public async Task NoBaseCall_Overriding_Virtual_ReportsDiagnostic ()
+  {
+    const string text = @"
+        using System;
+        using System.Runtime.InteropServices.ComTypes;
+        using Remotion.Infrastructure.Analyzers.BaseCalls;
+
+        namespace ConsoleApp1;
+
+        public class BaseClass
+        {
+            public virtual void x()
+            {
+            }
+        }
+
+        public class DerivedClass : BaseClass
+        {
+            public override void x()
+            {
+                //base.x();
+            }
+        }";
+
+    var expected = CSharpAnalyzerVerifier<BaseCallAnalyzer>.Diagnostic(Rules.NoBaseCall)
+        .WithLocation(17, 34)
+        .WithArguments("Test");
+    await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
+  }
 }

@@ -9,7 +9,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls.UnitTests;
 
 public class AbstractBaseMethodTest
 {
-    [Fact]
+  [Fact]
   public async Task NoBaseCall_Overriding_Abstract_Method_ReportsNothing ()
   {
     const string text = @"
