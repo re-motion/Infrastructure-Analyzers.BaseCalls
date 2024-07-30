@@ -14,7 +14,6 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class BaseCallAnalyzer : DiagnosticAnalyzer
 {
-
   //list of Rules
   public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
   [
@@ -94,7 +93,7 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
                ?? throw new ArgumentException("expected MethodDeclarationSyntax");
 
     var checkType = isMixin
-        ? BaseCall.Default //TODO check microsoft cci based base call checker
+        ? BaseCall.Default
         : AttributeChecks.CheckForBaseCallCheckAttribute(context);
 
     if (checkType is BaseCall.Default)
