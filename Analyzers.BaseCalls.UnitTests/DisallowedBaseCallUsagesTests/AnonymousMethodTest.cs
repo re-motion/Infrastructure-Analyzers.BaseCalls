@@ -73,10 +73,10 @@ public class DerivedClass : BaseClass
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.InAnonymousMethod)
-                           .WithLocation(20, 7), 
+                           .WithLocation(20, 7),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.NoBaseCall)
-                           .WithLocation(16, 24) 
+                           .WithLocation(16, 24)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -227,7 +227,7 @@ public class DerivedClass : BaseClass
                            .WithLocation(19, 56),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.NoBaseCall)
-                           .WithLocation(20, 5) 
+                           .WithLocation(20, 5)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
@@ -268,7 +268,7 @@ public class DerivedClass : BaseClass
                            .WithLocation(20, 33),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.NoBaseCall)
-                           .WithLocation(16, 24) 
+                           .WithLocation(16, 24)
                    };
 
 
@@ -309,10 +309,10 @@ public class DerivedClass : BaseClass
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.InAnonymousMethod)
-                           .WithLocation(22, 13), 
+                           .WithLocation(22, 13),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.NoBaseCall)
-                           .WithLocation(16, 24) 
+                           .WithLocation(16, 24)
                    };
 
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);

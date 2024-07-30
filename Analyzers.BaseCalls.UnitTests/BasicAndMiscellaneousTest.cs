@@ -190,8 +190,8 @@ using System.Collections.Generic;
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
-  
-  
+
+
   [Fact]
   public async Task BaseCallInBlock_ReportsNothing ()
   {
@@ -217,6 +217,7 @@ using System.Collections.Generic;
     var expected = DiagnosticResult.EmptyDiagnosticResults;
     await CSharpAnalyzerVerifier<BaseCallAnalyzer>.VerifyAnalyzerAsync(text, expected);
   }
+
   [Fact]
   public async Task MultipleBaseCallsInBlock_ReportsDiagnostic ()
   {

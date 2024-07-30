@@ -65,7 +65,7 @@ public class DerivedClass : BaseClass
     var expected = Verifier.Diagnostic(Rules.NoBaseCall).WithLocation(15, 26);
     await Verifier.VerifyCodeFixAsync(TestCode, expected, FixedCode);
   }
-  
+
   [Fact]
   public async Task AddsIgnoreCheckAttribute_And_UsingDirective ()
   {

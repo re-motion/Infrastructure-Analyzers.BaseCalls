@@ -21,6 +21,7 @@ public static class BaseCallReporter
     baseCalls = baseCalls.Where(descriptor => !descriptor.CallsBaseMethod).ToArray();
     ReportAll(context, baseCalls, Rules.WrongBaseCall);
   }
+
   public static void ReportDiagnostic (SyntaxNodeAnalysisContext context, Diagnostic? diagnostic)
   {
     if (diagnostic == null)
