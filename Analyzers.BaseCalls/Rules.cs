@@ -96,9 +96,9 @@ public class Rules
       s_descriptionWrongBaseCall);
 
   private const string c_diagnosticIdInTryOrCatch = "RMBCA0007";
-  private static readonly LocalizableString s_titleInTryOrCatch = "BaseCall in Try or Catch block";
-  private static readonly LocalizableString s_messageInTryOrCatch = "BaseCall is not allowed in Try or Catch block";
-  private static readonly LocalizableString s_descriptionInTryOrCatch = "BaseCall is not allowed in Try or Catch block.";
+  private static readonly LocalizableString s_titleInTryOrCatch = "BaseCall in Catch block";
+  private static readonly LocalizableString s_messageInTryOrCatch = "BaseCall is not allowed in Catch block";
+  private static readonly LocalizableString s_descriptionInTryOrCatch = "BaseCall is not allowed in Catch block.";
 
   public static readonly DiagnosticDescriptor InTryOrCatch = new(
       c_diagnosticIdInTryOrCatch,
