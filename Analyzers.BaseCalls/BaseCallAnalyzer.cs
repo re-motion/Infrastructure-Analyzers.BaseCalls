@@ -131,30 +131,4 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     isMixin = hasOverrideTargetAttribute;
     return hasOverrideTargetAttribute;
   }
-
-  public static void AnalyzeAnonymousMethod (SyntaxNodeAnalysisContext context, SyntaxNode? node)
-  {
-    SyntaxNode body;
-
-    switch (node)
-    {
-      case SimpleLambdaExpressionSyntax simpleLambda:
-        body = simpleLambda.Body;
-        break;
-      case AnonymousMethodExpressionSyntax anonymousMethod:
-        body = anonymousMethod.Body;
-        break;
-      case ParenthesizedLambdaExpressionSyntax parenthesizedLambdaExpressionSyntax:
-        body = parenthesizedLambdaExpressionSyntax.Body;
-        break;
-      default:
-        return;
-    }
-
-
-    if (BaseCallChecker.ContainsBaseCall(context, body, false, out var baseCalls))
-    {
-      BaseCallReporter.ReportDiagnostic(context, Diagnostic.Create(Rules.InAnonymousMethod, baseCalls[0].Location));
-    }
-  }
 }

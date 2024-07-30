@@ -19,8 +19,7 @@ public static partial class BaseCallChecker
   private static bool IsElse (SyntaxNode node) => node is ElseClauseSyntax;
   private static bool IsReturn (SyntaxNode node) => node is ReturnStatementSyntax;
   private static bool IsTry (SyntaxNode node) => node is TryStatementSyntax;
-  private static bool IsNormalSwitch (SyntaxNode node) => node is SwitchStatementSyntax;
-  private static bool IsSwitchExpression (SyntaxNode node) => node is SwitchExpressionSyntax;
+  private static bool IsSwitch (SyntaxNode node) => node is SwitchStatementSyntax or SwitchExpressionSyntax;
   private static bool IsUsingStatement (SyntaxNode node) => node is UsingStatementSyntax;
   private static bool IsBlock (SyntaxNode node) => node is BlockSyntax;
   private static bool IsThrow (SyntaxNode node) => node is ThrowStatementSyntax;
@@ -328,14 +327,7 @@ public static partial class BaseCallChecker
         {
           diagnostic = Diagnostic.Create(Rules.InLoop, baseCalls[0].Location);
           numberOfBaseCalls = NumberOfBaseCalls.DiagnosticFound;
-        }
-      }
-      else if (IsNormalSwitch(childNode) || IsSwitchExpression(childNode))
-      {
-        var baseCalls = GetBaseCalls(context, childNode, isMixin).ToArray();
-        if (baseCalls.Length > 0)
-        {
-          BaseCallReporter.ReportAll(context, baseCalls, Rules.InSwitch);
+          break;
         }
       }
       else if (IsUsingStatement(childNode))
@@ -348,9 +340,21 @@ public static partial class BaseCallChecker
 
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
+      else if (ContainsSwitch(childNode, out var switchNode))
+      {
+        if (ContainsBaseCall(context, switchNode, isMixin, out var baseCalls))
+        {
+          BaseCallReporter.ReportAll(context, baseCalls, Rules.InSwitch);
+          numberOfBaseCalls = NumberOfBaseCalls.DiagnosticFound;
+          break;
+        }
+      }
       else if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
       {
-        BaseCallAnalyzer.AnalyzeAnonymousMethod(context, anonymousMethod);
+        if (ContainsBaseCall(context, anonymousMethod, false, out var baseCalls))
+        {
+          BaseCallReporter.ReportAll(context, baseCalls, Rules.InAnonymousMethod);
+        }
       }
       else if (ContainsBaseCall(context, childNode, isMixin, out var baseCalls))
       {

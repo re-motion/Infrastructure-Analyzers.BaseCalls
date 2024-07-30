@@ -42,10 +42,6 @@ public class SwitchTests
     var expected = new[]
                    {
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(Rules.NoBaseCall)
-                           .WithLocation(12, 33)
-                           .WithArguments("Test"),
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.InSwitch)
                            .WithLocation(17, 32)
                            .WithArguments("Test")
@@ -115,10 +111,6 @@ public class SwitchTests
 
     var expected = new[]
                    {
-                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
-                           .Diagnostic(Rules.NoBaseCall)
-                           .WithLocation(12, 37)
-                           .WithArguments("Test"),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.InSwitch)
                            .WithLocation(16, 30)

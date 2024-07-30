@@ -223,6 +223,9 @@ public class DerivedClass : BaseClass
                            .Diagnostic(Rules.InAnonymousMethod)
                            .WithLocation(19, 36),
                        CSharpAnalyzerVerifier<BaseCallAnalyzer>
+                           .Diagnostic(Rules.InAnonymousMethod)
+                           .WithLocation(19, 56),
+                       CSharpAnalyzerVerifier<BaseCallAnalyzer>
                            .Diagnostic(Rules.NoBaseCall)
                            .WithLocation(20, 5) 
                    };

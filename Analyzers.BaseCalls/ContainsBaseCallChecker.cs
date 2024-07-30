@@ -13,12 +13,12 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public static partial class BaseCallChecker
 {
-    public static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode node, bool isMixin, out BaseCallDescriptor[] baseCalls)
+  public static bool ContainsBaseCall (SyntaxNodeAnalysisContext context, SyntaxNode? node, bool isMixin, out BaseCallDescriptor[] baseCalls)
   {
     baseCalls = GetBaseCalls(context, node, isMixin).ToArray();
     return baseCalls.Length > 0;
   }
-  
+
   public static IEnumerable<BaseCallDescriptor> GetBaseCalls (SyntaxNodeAnalysisContext context, SyntaxNode? nodeToCheck, bool isMixin)
   {
     var childNodes = nodeToCheck is null ? [] : nodeToCheck.DescendantNodesAndSelf();
@@ -107,8 +107,8 @@ public static partial class BaseCallChecker
       yield return new BaseCallDescriptor(location, isCorrect);
     }
   }
-  
-    
+
+
   private static bool ContainsAnonymousMethod (SyntaxNode node, out SyntaxNode? anonymousMethod)
   {
     foreach (var childNode in node.DescendantNodesAndSelf())
@@ -128,6 +128,21 @@ public static partial class BaseCallChecker
     }
 
     anonymousMethod = null;
+    return false;
+  }
+
+  private static bool ContainsSwitch (SyntaxNode childNode, out SyntaxNode? switchNode)
+  {
+    foreach (var node in childNode.DescendantNodesAndSelf())
+    {
+      if (IsSwitch(node))
+      {
+        switchNode = node;
+        return true;
+      }
+    }
+
+    switchNode = null;
     return false;
   }
 }
