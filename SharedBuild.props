@@ -1,0 +1,15 @@
+<Project>
+    <PropertyGroup>
+        <Product>BaseCallChecker</Product>
+        <Company>RUBICON IT GmbH</Company>
+        <Copyright>Copyright (c) rubicon IT GmbH</Copyright>
+        <Authors>$(Company)</Authors>
+        <Description>A Roslyn Analyzer which checks base call semantics</Description>
+        <PackageTags>re-motion BaseCallChecker</PackageTags>
+        <DevelopmentDependency>true</DevelopmentDependency>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <RepositoryUrl>https://github.com/re-motion/Infrastructure-Analyzers.BaseCalls</RepositoryUrl>
+        <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+</Project>
