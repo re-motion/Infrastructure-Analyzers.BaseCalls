@@ -32,7 +32,7 @@ public static class CSharpCodeFixVerifier<TAnalyzer, TCodeFixProvider>
                {
                    TestCode = source,
                    ReferenceAssemblies = GetReferenceAssemblies(typeof(BaseCallCheckAttribute).Assembly).AddPackages(packages)
-                       .WithNuGetConfigFilePath(@"..\..\..\..\..\Infrastructure-Analyzers.BaseCalls\NuGet.config"),
+                       .WithNuGetConfigFilePath(@"..\..\..\..\NuGet.config"),
                    SolutionTransforms =
                    {
                        (solution, id) =>
