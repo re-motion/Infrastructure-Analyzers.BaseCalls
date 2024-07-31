@@ -106,8 +106,13 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
     if (checkType is BaseCall.IsOptional)
     {
-      if (!BaseCallChecker.ContainsBaseCall(context, node, isMixin, out _))
+      if (!BaseCallChecker.ContainsBaseCall(context, node, isMixin, out var baseCalls))
       {
+        return false;
+      }
+      else if (baseCalls.Any(bc => !bc.CallsBaseMethod))
+      {
+        BaseCallReporter.ReportAllWrong(context, baseCalls);
         return false;
       }
     }
