@@ -4,15 +4,15 @@ using Microsoft.CodeAnalysis;
 
 namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
-public class Rules
+public static class Rules
 {
   private const string c_category = "Usage";
   private const DiagnosticSeverity c_severity = DiagnosticSeverity.Warning;
 
   private const string c_diagnosticId = "RMBCA0001";
-  private static readonly LocalizableString s_title = "Base Call missing";
-  private static readonly LocalizableString s_messageFormat = "Base Call missing";
-  private static readonly LocalizableString s_description = "Base Call is missing.";
+  private static readonly LocalizableString s_title = "Base call missing";
+  private static readonly LocalizableString s_messageFormat = "Base call missing";
+  private static readonly LocalizableString s_description = "Base call is missing.";
 
   public static readonly DiagnosticDescriptor NoBaseCall = new(
       c_diagnosticId,
@@ -25,9 +25,9 @@ public class Rules
 
 
   private const string c_diagnosticIdLoopMessage = "RMBCA0002";
-  private static readonly LocalizableString s_titleLoopMessage = "Base Call found in a loop";
-  private static readonly LocalizableString s_messageFormatLoopMessage = "Base Call found in a loop";
-  private static readonly LocalizableString s_descriptionLoopMessage = "Base Call found in a loop, not allowed here.";
+  private static readonly LocalizableString s_titleLoopMessage = "Base call found in a loop";
+  private static readonly LocalizableString s_messageFormatLoopMessage = "Base call found in a loop";
+  private static readonly LocalizableString s_descriptionLoopMessage = "Base call found in a loop, not allowed here.";
 
   public static readonly DiagnosticDescriptor InLoop = new(
       c_diagnosticIdLoopMessage,
@@ -39,9 +39,9 @@ public class Rules
       s_descriptionLoopMessage);
 
   private const string c_diagnosticIdAnonymousMethod = "RMBCA0003";
-  private static readonly LocalizableString s_titleAnonymousMethod = "Base Call found in anonymous method";
-  private static readonly LocalizableString s_messageFormatAnonymousMethod = "Base Call is not allowed in anonymous methods";
-  private static readonly LocalizableString s_descriptionAnonymousMethod = "Base Calls should not be used in anonymous methods.";
+  private static readonly LocalizableString s_titleAnonymousMethod = "Base call found in anonymous method";
+  private static readonly LocalizableString s_messageFormatAnonymousMethod = "Base call is not allowed in anonymous methods";
+  private static readonly LocalizableString s_descriptionAnonymousMethod = "Base calls should not be used in anonymous methods.";
 
   public static readonly DiagnosticDescriptor InAnonymousMethod = new(
       c_diagnosticIdAnonymousMethod,
@@ -53,9 +53,9 @@ public class Rules
       s_descriptionAnonymousMethod);
 
   private const string c_diagnosticIdLocalFunction = "RMBCA0004";
-  private static readonly LocalizableString s_titleLocalFunction = "Base Call found in local function";
-  private static readonly LocalizableString s_messageFormatLocalFunction = "Base Call is not allowed in local function";
-  private static readonly LocalizableString s_descriptionLocalFunction = "Base Calls should not be used in local function.";
+  private static readonly LocalizableString s_titleLocalFunction = "Base call found in local function";
+  private static readonly LocalizableString s_messageFormatLocalFunction = "Base call is not allowed in local function";
+  private static readonly LocalizableString s_descriptionLocalFunction = "Base calls should not be used in local function.";
 
   public static readonly DiagnosticDescriptor InLocalFunction = new(
       c_diagnosticIdLocalFunction,
@@ -68,9 +68,9 @@ public class Rules
 
 
   private const string c_diagnosticIdMultipleBaseCalls = "RMBCA0005";
-  private static readonly LocalizableString s_titleMultipleBaseCalls = "multiple BaseCalls found";
-  private static readonly LocalizableString s_messageMultipleBaseCalls = "multiple BaseCalls found";
-  private static readonly LocalizableString s_descriptionMultipleBaseCalls = "multiple BaseCalls found in this method, there should only be one BaseCall.";
+  private static readonly LocalizableString s_titleMultipleBaseCalls = "Multiple base calls found";
+  private static readonly LocalizableString s_messageMultipleBaseCalls = "Multiple base call found";
+  private static readonly LocalizableString s_descriptionMultipleBaseCalls = "Multiple base call found in this method, there should only be one Base call.";
 
   public static readonly DiagnosticDescriptor MultipleBaseCalls = new(
       c_diagnosticIdMultipleBaseCalls,
@@ -82,9 +82,9 @@ public class Rules
       s_descriptionMultipleBaseCalls);
 
   private const string c_diagnosticIdWrongBaseCall = "RMBCA0006";
-  private static readonly LocalizableString s_titleWrongBaseCall = "incorrect BaseCall";
-  private static readonly LocalizableString s_messageWrongBaseCall = "BaseCall does not call the overridden Method";
-  private static readonly LocalizableString s_descriptionWrongBaseCall = "BaseCall does not call the overridden Method.";
+  private static readonly LocalizableString s_titleWrongBaseCall = "Incorrect base call";
+  private static readonly LocalizableString s_messageWrongBaseCall = "Base call does not call the overridden method";
+  private static readonly LocalizableString s_descriptionWrongBaseCall = "Base call does not call the overridden method.";
 
   public static readonly DiagnosticDescriptor WrongBaseCall = new(
       c_diagnosticIdWrongBaseCall,
@@ -96,9 +96,9 @@ public class Rules
       s_descriptionWrongBaseCall);
 
   private const string c_diagnosticIdInTryOrCatch = "RMBCA0007";
-  private static readonly LocalizableString s_titleInTryOrCatch = "BaseCall in Catch block";
-  private static readonly LocalizableString s_messageInTryOrCatch = "BaseCall is not allowed in Catch block";
-  private static readonly LocalizableString s_descriptionInTryOrCatch = "BaseCall is not allowed in Catch block.";
+  private static readonly LocalizableString s_titleInTryOrCatch = "Base call in catch block";
+  private static readonly LocalizableString s_messageInTryOrCatch = "Base call is not allowed in catch block";
+  private static readonly LocalizableString s_descriptionInTryOrCatch = "Base call is not allowed in catch block.";
 
   public static readonly DiagnosticDescriptor InTryOrCatch = new(
       c_diagnosticIdInTryOrCatch,
@@ -110,9 +110,9 @@ public class Rules
       s_descriptionInTryOrCatch);
 
   private const string c_diagnosticIdInInNonOverridingMethod = "RMBCA0008";
-  private static readonly LocalizableString s_titleInInNonOverridingMethod = "BaseCall in non overriding Method";
-  private static readonly LocalizableString s_messageInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method";
-  private static readonly LocalizableString s_descriptionInInNonOverridingMethod = "BaseCall is not allowed in non overriding Method.";
+  private static readonly LocalizableString s_titleInInNonOverridingMethod = "Base call in non-overriding method";
+  private static readonly LocalizableString s_messageInInNonOverridingMethod = "Base call is not allowed in non-overriding method";
+  private static readonly LocalizableString s_descriptionInInNonOverridingMethod = "Base call is not allowed in non-overriding method.";
 
   public static readonly DiagnosticDescriptor InNonOverridingMethod = new(
       c_diagnosticIdInInNonOverridingMethod,
@@ -124,9 +124,9 @@ public class Rules
       s_descriptionInInNonOverridingMethod);
 
   private const string c_diagnosticIdSwitch = "RMBCA0009";
-  private static readonly LocalizableString s_titleSwitch = "Base Call found in Switch";
-  private static readonly LocalizableString s_messageFormatSwitch = "Base Call is not allowed in Switch";
-  private static readonly LocalizableString s_descriptionSwitch = "Base Calls should not be used in Switch.";
+  private static readonly LocalizableString s_titleSwitch = "Base call found in switch statement";
+  private static readonly LocalizableString s_messageFormatSwitch = "Base call is not allowed in switch statement";
+  private static readonly LocalizableString s_descriptionSwitch = "Base calls should not be used in switch statement.";
 
   public static readonly DiagnosticDescriptor InSwitch = new(
       c_diagnosticIdSwitch,

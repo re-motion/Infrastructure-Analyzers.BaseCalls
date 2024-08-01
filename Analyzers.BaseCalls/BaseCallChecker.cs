@@ -12,18 +12,7 @@ namespace Remotion.Infrastructure.Analyzers.BaseCalls;
 
 public static partial class BaseCallChecker
 {
-  private static bool IsLoop (SyntaxNode node) => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
-  private static bool IsForEachLoop (SyntaxNode node) => node is ForEachStatementSyntax;
-  private static bool IsIf (SyntaxNode node) => node is IfStatementSyntax;
-  private static bool IsElse (SyntaxNode node) => node is ElseClauseSyntax;
-  private static bool IsReturn (SyntaxNode node) => node is ReturnStatementSyntax;
-  private static bool IsTry (SyntaxNode node) => node is TryStatementSyntax;
-  private static bool IsSwitch (SyntaxNode node) => node is SwitchStatementSyntax or SwitchExpressionSyntax;
-  private static bool IsUsingStatement (SyntaxNode node) => node is UsingStatementSyntax;
-  private static bool IsBlock (SyntaxNode node) => node is BlockSyntax;
-  private static bool IsThrow (SyntaxNode node) => node is ThrowStatementSyntax;
-
-  public static Diagnostic? BaseCallCheckerInitializer (SyntaxNodeAnalysisContext context, bool isMixin)
+  public static Diagnostic? Check (SyntaxNodeAnalysisContext context, bool isMixin)
   {
     return Check(context, context.Node, new NumberOfBaseCalls(0), isMixin).diagnostic;
   }
@@ -322,7 +311,8 @@ public static partial class BaseCallChecker
           newChildNode = (childNode as ForEachStatementSyntax)!.Statement;
         }
 
-        if (ContainsBaseCall(context, newChildNode, isMixin, out var baseCalls))
+        var baseCalls = GetBaseCalls(context, newChildNode, isMixin).ToArray();
+        if (baseCalls.Length > 0)
         {
           diagnostic = Diagnostic.Create(Rules.InLoop, baseCalls[0].Location);
           numberOfBaseCalls = NumberOfBaseCalls.DiagnosticFound;
@@ -339,32 +329,38 @@ public static partial class BaseCallChecker
 
         numberOfBaseCalls = result.numberOfBaseCalls;
       }
-      else if (ContainsSwitch(childNode, out var switchNode))
+      else if (GetSwitch(childNode) is { } switchNode)
       {
-        if (ContainsBaseCall(context, switchNode, isMixin, out var baseCalls))
+        var baseCalls = GetBaseCalls(context, switchNode, isMixin).ToArray();
+        if (baseCalls.Length > 0)
         {
           BaseCallReporter.ReportAll(context, baseCalls, Rules.InSwitch);
           numberOfBaseCalls = NumberOfBaseCalls.DiagnosticFound;
           break;
         }
       }
-      else if (ContainsAnonymousMethod(childNode, out var anonymousMethod))
+      else if (GetAnonymousMethod(childNode) is { } anonymousMethod)
       {
-        if (ContainsBaseCall(context, anonymousMethod, false, out var baseCalls))
+        var baseCalls = GetBaseCalls(context, anonymousMethod, false).ToArray();
+        if (baseCalls.Length > 0)
         {
           BaseCallReporter.ReportAll(context, baseCalls, Rules.InAnonymousMethod);
         }
       }
-      else if (ContainsBaseCall(context, childNode, isMixin, out var baseCalls))
+      else
       {
-        BaseCallReporter.ReportAllWrong(context, baseCalls);
-        if (baseCalls.Any(bc => bc.CallsBaseMethod))
+        var baseCalls = GetBaseCalls(context, childNode, isMixin).ToArray();
+        if (baseCalls.Length > 0)
         {
-          numberOfBaseCalls.Increment();
-          if (numberOfBaseCalls.Max >= 2)
+          BaseCallReporter.ReportAllWrong(context, baseCalls);
+          if (baseCalls.Any(bc => bc.CallsBaseMethod))
           {
-            diagnostic = Diagnostic.Create(Rules.MultipleBaseCalls, baseCalls[0].Location);
-            break;
+            numberOfBaseCalls.Increment();
+            if (numberOfBaseCalls.Max >= 2)
+            {
+              diagnostic = Diagnostic.Create(Rules.MultipleBaseCalls, baseCalls[0].Location);
+              break;
+            }
           }
         }
       }
@@ -379,4 +375,15 @@ public static partial class BaseCallChecker
     result = (numberOfBaseCalls, null);
     return false;
   }
+
+  private static bool IsLoop (SyntaxNode node) => node is ForStatementSyntax or WhileStatementSyntax or ForEachStatementSyntax or DoStatementSyntax;
+  private static bool IsForEachLoop (SyntaxNode node) => node is ForEachStatementSyntax;
+  private static bool IsIf (SyntaxNode node) => node is IfStatementSyntax;
+  private static bool IsElse (SyntaxNode node) => node is ElseClauseSyntax;
+  private static bool IsReturn (SyntaxNode node) => node is ReturnStatementSyntax;
+  private static bool IsTry (SyntaxNode node) => node is TryStatementSyntax;
+  private static bool IsSwitch (SyntaxNode node) => node is SwitchStatementSyntax or SwitchExpressionSyntax;
+  private static bool IsUsingStatement (SyntaxNode node) => node is UsingStatementSyntax;
+  private static bool IsBlock (SyntaxNode node) => node is BlockSyntax;
+  private static bool IsThrow (SyntaxNode node) => node is ThrowStatementSyntax;
 }

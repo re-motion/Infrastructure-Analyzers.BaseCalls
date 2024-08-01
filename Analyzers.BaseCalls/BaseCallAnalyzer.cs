@@ -42,11 +42,10 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         return;
       }
 
-      var node = context.Node as MethodDeclarationSyntax
-                 ?? throw new ArgumentException("expected MethodDeclarationSyntax");
-
-      if (!DoesOverride(context, out var isMixin))
+      if (!IsOverride(context, out var isMixin))
       {
+        var node = GetNode(context);
+
         var baseCalls = BaseCallChecker.GetBaseCalls(context, node, isMixin).ToArray();
         if (node.Modifiers.Any(SyntaxKind.NewKeyword))
         {
@@ -56,20 +55,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
         {
           BaseCallReporter.ReportAll(context, baseCalls, Rules.InNonOverridingMethod);
         }
-
-        return;
       }
-
-      if (BaseCallMustBePresent(context, isMixin))
+      else if (BaseCallMustBePresent(context, isMixin))
       {
-        var diagnostic = BaseCallChecker.BaseCallCheckerInitializer(context, isMixin);
+        var diagnostic = BaseCallChecker.Check(context, isMixin);
         BaseCallReporter.ReportDiagnostic(context, diagnostic);
       }
     }
     catch (Exception ex)
     {
-      //for debugging, comment return and uncomment reportDiagnostic
-      //return;
       context.ReportDiagnostic(Diagnostic.Create(Rules.Error, context.Node.GetLocation(), ex.ToString()));
     }
   }
@@ -89,24 +83,24 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
 
   private static bool BaseCallMustBePresent (SyntaxNodeAnalysisContext context, bool isMixin)
   {
-    var node = context.Node as MethodDeclarationSyntax
-               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+    var node = GetNode(context);
 
-    var checkType = isMixin
+    var expectedBaseCall = isMixin
         ? BaseCall.Default
         : AttributeChecks.CheckForBaseCallCheckAttribute(context);
 
-    if (checkType is BaseCall.Default)
+    if (expectedBaseCall is BaseCall.Default)
     {
       var isVoid = node.ReturnType is PredefinedTypeSyntax predefinedTypeSyntax
                    && predefinedTypeSyntax.Keyword.IsKind(SyntaxKind.VoidKeyword);
 
-      checkType = isVoid ? BaseCall.IsMandatory : BaseCall.IsOptional;
+      expectedBaseCall = isVoid ? BaseCall.IsMandatory : BaseCall.IsOptional;
     }
 
-    if (checkType is BaseCall.IsOptional)
+    if (expectedBaseCall is BaseCall.IsOptional)
     {
-      if (!BaseCallChecker.ContainsBaseCall(context, node, isMixin, out var baseCalls))
+      var baseCalls = BaseCallChecker.GetBaseCalls(context, node, isMixin).ToArray();
+      if (baseCalls.Length == 0)
       {
         return false;
       }
@@ -120,10 +114,15 @@ public class BaseCallAnalyzer : DiagnosticAnalyzer
     return true;
   }
 
-  private static bool DoesOverride (SyntaxNodeAnalysisContext context, out bool isMixin)
+  public static MethodDeclarationSyntax GetNode (SyntaxNodeAnalysisContext context)
   {
-    var node = context.Node as MethodDeclarationSyntax
-               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+    return context.Node as MethodDeclarationSyntax
+           ?? throw new ArgumentException($"Context should have node of type '{nameof(MethodDeclarationSyntax)}' but was '{context.Node.GetType()}'.", nameof(context));
+  }
+
+  private static bool IsOverride (SyntaxNodeAnalysisContext context, out bool isMixin)
+  {
+    var node = GetNode(context);
 
     if (node.Modifiers.Any(SyntaxKind.OverrideKeyword))
     {

@@ -42,8 +42,7 @@ public static class AttributeChecks
 
   public static bool HasIgnoreBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
-    var node = context.Node as MethodDeclarationSyntax
-               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+    var node = BaseCallAnalyzer.GetNode(context);
 
     var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
 
@@ -52,8 +51,7 @@ public static class AttributeChecks
 
   public static bool HasOverrideTargetAttribute (SyntaxNodeAnalysisContext context)
   {
-    var node = context.Node as MethodDeclarationSyntax
-               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+    var node = BaseCallAnalyzer.GetNode(context);
 
     var methodSymbol = context.SemanticModel.GetDeclaredSymbol(node);
 
@@ -63,19 +61,18 @@ public static class AttributeChecks
 
   public static BaseCall CheckForBaseCallCheckAttribute (SyntaxNodeAnalysisContext context)
   {
-    var node = context.Node as MethodDeclarationSyntax
-               ?? throw new ArgumentException("expected MethodDeclarationSyntax");
+    var node = BaseCallAnalyzer.GetNode(context);
 
     var currentMethod = context.SemanticModel.GetDeclaredSymbol(node);
 
     if (currentMethod is null)
     {
-      throw new InvalidOperationException("could not get Semantic Model of node");
+      throw new InvalidOperationException("Could not get semantic model of node.");
     }
 
     if (currentMethod.OverriddenMethod is null)
     {
-      throw new InvalidOperationException("overriding method does not have an overriden method (there will be an other error: no suitable Method for override)");
+      throw new InvalidOperationException("Overriding method does not have an overriden method (there will be an other error: no suitable method for override).");
     }
 
     if (currentMethod.OverriddenMethod.IsAbstract || HasAttribute(currentMethod.OverriddenMethod, c_emptyTemplateMethodAttribute))
